@@ -146,20 +146,87 @@ public class LoginActivity extends AppCompatActivity {
                     navigateToMainActivity();
                     finish();
                 } else {
-                    // Handle error
-                    String errorMessage = response.code() == 401
-                            ? getString(R.string.error_invalid_credentials)
-                            : getString(R.string.error_login_failed);
-                    Toast.makeText(LoginActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
+                    // Handle error based on HTTP status code
+                    String errorMessage;
+                    
+                    switch (response.code()) {
+                        case 401:
+                            // Unauthorized - wrong credentials
+                            errorMessage = getString(R.string.error_invalid_credentials);
+                            // Clear password field for security
+                            editTextPassword.setText("");
+                            break;
+                            
+                        case 404:
+                            // Not found - user doesn't exist
+                            errorMessage = getString(R.string.error_user_not_found);
+                            break;
+                            
+                        case 400:
+                            // Bad request - validation errors
+                            errorMessage = getString(R.string.error_invalid_login_data);
+                            break;
+                            
+                        case 500:
+                        case 502:
+                        case 503:
+                        case 504:
+                            // Server errors
+                            errorMessage = getString(R.string.error_server);
+                            break;
+                            
+                        default:
+                            errorMessage = getString(R.string.error_login_failed);
+                            break;
+                    }
+                    
+                    showErrorMessage(errorMessage);
                 }
             }
 
             @Override
             public void onFailure(Call<LoginResponse> call, Throwable t) {
                 showProgress(false);
-                Toast.makeText(LoginActivity.this, getString(R.string.error_network), Toast.LENGTH_SHORT).show();
+                
+                // Determine the type of failure
+                String errorMessage;
+                if (!isNetworkAvailable()) {
+                    errorMessage = getString(R.string.error_no_internet);
+                } else if (t.getMessage() != null && t.getMessage().contains("timeout")) {
+                    errorMessage = getString(R.string.error_timeout);
+                } else {
+                    errorMessage = getString(R.string.error_network);
+                }
+                
+                showErrorMessage(errorMessage);
             }
         });
+    }
+
+    /**
+     * Displays an error message to the user.
+     *
+     * @param message The error message to display
+     */
+    private void showErrorMessage(String message) {
+        // Display a toast message
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+        
+        // You could also update a TextView to show the error more prominently
+        // textViewError.setText(message);
+        // textViewError.setVisibility(View.VISIBLE);
+    }
+    
+    /**
+     * Checks if the device has an active network connection.
+     *
+     * @return true if a network connection is available
+     */
+    private boolean isNetworkAvailable() {
+        android.net.ConnectivityManager connectivityManager = (android.net.ConnectivityManager) 
+                getSystemService(CONNECTIVITY_SERVICE);
+        android.net.NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+        return activeNetworkInfo != null && activeNetworkInfo.isConnected();
     }
 
     /**

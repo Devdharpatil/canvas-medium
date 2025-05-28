@@ -7,8 +7,8 @@ import com.google.gson.annotations.SerializedName;
  */
 public class LoginRequest {
 
-    @SerializedName("email")
-    private String email;
+    @SerializedName("username")
+    private String username;
 
     @SerializedName("password")
     private String password;
@@ -16,30 +16,30 @@ public class LoginRequest {
     /**
      * Constructor for login request.
      *
-     * @param email    The user's email
-     * @param password The user's password
+     * @param username  The user's username or email
+     * @param password  The user's password
      */
-    public LoginRequest(String email, String password) {
-        this.email = email;
+    public LoginRequest(String username, String password) {
+        this.username = username;
         this.password = password;
     }
 
     /**
-     * Gets the email.
+     * Gets the username.
      *
-     * @return The email
+     * @return The username
      */
-    public String getEmail() {
-        return email;
+    public String getUsername() {
+        return username;
     }
 
     /**
-     * Sets the email.
+     * Sets the username.
      *
-     * @param email The email to set
+     * @param username The username to set
      */
-    public void setEmail(String email) {
-        this.email = email;
+    public void setUsername(String username) {
+        this.username = username;
     }
 
     /**

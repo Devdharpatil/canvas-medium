@@ -188,32 +188,95 @@ public class RegisterActivity extends AppCompatActivity {
                     navigateToMainActivity();
                     finish();
                 } else {
-                    // Handle error
-                    int responseCode = response.code();
+                    // Handle error based on HTTP status code
                     String errorMessage;
                     
-                    switch (responseCode) {
+                    switch (response.code()) {
                         case 409:
-                            errorMessage = getString(R.string.error_username_email_taken);
+                            // Conflict - username or email already exists
+                            try {
+                                String responseBody = response.errorBody().string();
+                                if (responseBody.contains("Username")) {
+                                    errorMessage = getString(R.string.error_username_taken);
+                                    editTextUsername.setError(errorMessage);
+                                    editTextUsername.requestFocus();
+                                } else if (responseBody.contains("Email")) {
+                                    errorMessage = getString(R.string.error_email_taken);
+                                    editTextEmail.setError(errorMessage);
+                                    editTextEmail.requestFocus();
+                                } else {
+                                    errorMessage = getString(R.string.error_username_email_taken);
+                                }
+                            } catch (Exception e) {
+                                errorMessage = getString(R.string.error_username_email_taken);
+                            }
                             break;
+                            
                         case 400:
+                            // Bad request - validation errors
                             errorMessage = getString(R.string.error_invalid_registration_data);
                             break;
+                            
+                        case 500:
+                        case 502:
+                        case 503:
+                        case 504:
+                            // Server errors
+                            errorMessage = getString(R.string.error_server);
+                            break;
+                            
                         default:
                             errorMessage = getString(R.string.error_registration_failed);
                             break;
                     }
                     
-                    Toast.makeText(RegisterActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
+                    showErrorMessage(errorMessage);
                 }
             }
 
             @Override
             public void onFailure(Call<LoginResponse> call, Throwable t) {
                 showProgress(false);
-                Toast.makeText(RegisterActivity.this, getString(R.string.error_network), Toast.LENGTH_SHORT).show();
+                
+                // Determine the type of failure
+                String errorMessage;
+                if (!isNetworkAvailable()) {
+                    errorMessage = getString(R.string.error_no_internet);
+                } else if (t.getMessage() != null && t.getMessage().contains("timeout")) {
+                    errorMessage = getString(R.string.error_timeout);
+                } else {
+                    errorMessage = getString(R.string.error_network);
+                }
+                
+                showErrorMessage(errorMessage);
             }
         });
+    }
+
+    /**
+     * Displays an error message to the user.
+     *
+     * @param message The error message to display
+     */
+    private void showErrorMessage(String message) {
+        // Display a toast message
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+        
+        // You could also update a TextView to show the error more prominently
+        // textViewError.setText(message);
+        // textViewError.setVisibility(View.VISIBLE);
+    }
+    
+    /**
+     * Checks if the device has an active network connection.
+     *
+     * @return true if a network connection is available
+     */
+    private boolean isNetworkAvailable() {
+        android.net.ConnectivityManager connectivityManager = (android.net.ConnectivityManager) 
+                getSystemService(CONNECTIVITY_SERVICE);
+        android.net.NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+        return activeNetworkInfo != null && activeNetworkInfo.isConnected();
     }
 
     /**

@@ -42,9 +42,18 @@ public class UserServiceImpl implements UserService {
     }
     
     @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
+    public UserDetails loadUserByUsername(String usernameOrEmail) throws UsernameNotFoundException {
+        // Try to find user by username first
+        Optional<User> userOptional = userRepository.findByUsername(usernameOrEmail);
+        
+        // If not found by username, try by email
+        if (userOptional.isEmpty()) {
+            userOptional = userRepository.findByEmail(usernameOrEmail);
+        }
+        
+        // If still not found, throw exception
+        User user = userOptional.orElseThrow(() -> 
+            new UsernameNotFoundException("User not found with username or email: " + usernameOrEmail));
         
         List<SimpleGrantedAuthority> authorities = user.getRoles().stream()
                 .map(role -> new SimpleGrantedAuthority(role.name()))
@@ -207,9 +216,18 @@ public class UserServiceImpl implements UserService {
     
     @Override
     @Transactional
-    public void recordLogin(String username) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
+    public void recordLogin(String usernameOrEmail) {
+        // Try to find user by username first
+        Optional<User> userOptional = userRepository.findByUsername(usernameOrEmail);
+        
+        // If not found by username, try by email
+        if (userOptional.isEmpty()) {
+            userOptional = userRepository.findByEmail(usernameOrEmail);
+        }
+        
+        // If still not found, throw exception
+        User user = userOptional.orElseThrow(() -> 
+            new UsernameNotFoundException("User not found with username or email: " + usernameOrEmail));
         
         user.updateLastLogin();
         userRepository.save(user);
