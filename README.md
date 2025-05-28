@@ -21,7 +21,11 @@ The application allows users to:
 CanvaMedium is currently in the Setup Stage:
 
 - **Development Stage**: ✅ Completed all four phases
-- **Setup Stage**: 🔄 In Progress (Backend running successfully, Android setup in progress)
+- **Setup Stage**: 🔄 In Progress
+  - ✅ Prerequisites Phase: Completed (JDK, PostgreSQL, Maven, Android Studio)
+  - ✅ Backend Setup Phase: Completed (Running with Swagger UI accessible)
+  - ✅ Android Setup Phase: Completed (App builds successfully with all errors fixed)
+  - ⏳ Full Stack Testing Phase: In Progress (Testing API endpoints and UI flows)
 - **Demo Video Recording Stage**: ⏳ Planned
 
 ## Features
@@ -97,6 +101,8 @@ CanvaMedium is currently in the Setup Stage:
 - Room for local storage
 - RecyclerView for list displays
 - Material Design components
+- WorkManager for background tasks
+- EncryptedSharedPreferences for secure storage
 
 ## Project Structure
 
@@ -109,7 +115,9 @@ CanvaMedium is currently in the Setup Stage:
 ### Prerequisites
 - JDK 17 or later
 - PostgreSQL
+- Maven
 - Android Studio with Android SDK 34+
+- Git
 
 ### Backend Setup
 
@@ -123,7 +131,7 @@ CanvaMedium is currently in the Setup Stage:
 ### Android Setup
 
 1. Open the android directory in Android Studio
-2. Update the API base URL in `android/app/src/main/java/com/canvamedium/api/ApiClient.java` if needed
+2. Update the API base URL in `android/app/src/main/java/com/canvamedium/api/ApiClient.java` if needed (default is `http://10.0.2.2:8080/` for emulator access)
 3. Build and run the application on an emulator or physical device
 
 ## Development Resources
