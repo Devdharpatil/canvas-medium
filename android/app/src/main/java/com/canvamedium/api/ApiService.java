@@ -3,6 +3,8 @@ package com.canvamedium.api;
 import com.canvamedium.model.Article;
 import com.canvamedium.model.Content;
 import com.canvamedium.model.Template;
+import com.canvamedium.model.Tag;
+import com.canvamedium.model.Category;
 
 import java.util.List;
 import java.util.Map;
@@ -19,6 +21,7 @@ import retrofit2.http.PUT;
 import retrofit2.http.Part;
 import retrofit2.http.Path;
 import retrofit2.http.QueryMap;
+import retrofit2.http.Query;
 
 /**
  * Retrofit API service interface for communicating with the CanvaMedium backend.
@@ -127,6 +130,42 @@ public interface ApiService {
      */
     @GET("api/articles/search")
     Call<Map<String, Object>> searchArticles(@QueryMap Map<String, Object> options);
+    
+    /**
+     * Search for articles by query string.
+     *
+     * @param query Search query string
+     * @return Call object containing the list of matching articles
+     */
+    @GET("api/articles/search")
+    Call<List<Article>> searchArticles(@Query("query") String query);
+    
+    /**
+     * Get articles by category ID.
+     *
+     * @param categoryId The category ID
+     * @return Call object containing the list of articles in the category
+     */
+    @GET("api/articles/category/{categoryId}")
+    Call<List<Article>> getArticlesByCategory(@Path("categoryId") long categoryId);
+    
+    /**
+     * Bookmark an article.
+     *
+     * @param articleId The ID of the article to bookmark
+     * @return Call object containing the response
+     */
+    @POST("api/articles/{id}/bookmark")
+    Call<ResponseBody> bookmarkArticle(@Path("id") long articleId);
+    
+    /**
+     * Remove bookmark from an article.
+     *
+     * @param articleId The ID of the article to unbookmark
+     * @return Call object containing the response
+     */
+    @DELETE("api/articles/{id}/bookmark")
+    Call<ResponseBody> unbookmarkArticle(@Path("id") long articleId);
     
     /**
      * Get featured articles.
@@ -249,4 +288,90 @@ public interface ApiService {
      */
     @DELETE("api/media/{filename}")
     Call<Map<String, Boolean>> deleteFile(@Path("filename") String filename);
+    
+    // Content endpoints
+    
+    /**
+     * Get content by ID.
+     *
+     * @param id The content ID
+     * @return Call object containing the content
+     */
+    @GET("api/contents/{id}")
+    Call<Content> getContentById(@Path("id") Long id);
+    
+    /**
+     * Create a new content.
+     *
+     * @param content The content to create
+     * @return Call object containing the created content
+     */
+    @POST("api/contents")
+    Call<Content> createContent(@Body Content content);
+    
+    /**
+     * Update existing content.
+     *
+     * @param id      The content ID
+     * @param content The updated content data
+     * @return Call object containing the updated content
+     */
+    @PUT("api/contents/{id}")
+    Call<Content> updateContent(@Path("id") Long id, @Body Content content);
+    
+    // Tag endpoints
+    
+    /**
+     * Get all tags.
+     *
+     * @return Call object containing the list of tags
+     */
+    @GET("api/tags/all")
+    Call<List<Tag>> getAllTags();
+    
+    /**
+     * Get a tag by name.
+     *
+     * @param name The tag name
+     * @return Call object containing the tag
+     */
+    @GET("api/tags/name/{name}")
+    Call<Tag> getTagByName(@Path("name") String name);
+    
+    /**
+     * Search tags by query string.
+     *
+     * @param query Search query string
+     * @return Call object containing the list of matching tags
+     */
+    @GET("api/tags/search")
+    Call<List<Tag>> searchTags(@Query("query") String query);
+    
+    // Category endpoints
+    
+    /**
+     * Get all categories.
+     *
+     * @return Call object containing the list of categories
+     */
+    @GET("api/categories/all")
+    Call<List<Category>> getAllCategories();
+    
+    /**
+     * Get a category by ID.
+     *
+     * @param id The category ID
+     * @return Call object containing the category
+     */
+    @GET("api/categories/{id}")
+    Call<Category> getCategoryById(@Path("id") Long id);
+    
+    /**
+     * Search categories by query string.
+     *
+     * @param query Search query string
+     * @return Call object containing the list of matching categories
+     */
+    @GET("api/categories/search")
+    Call<List<Category>> searchCategories(@Query("query") String query);
 } 

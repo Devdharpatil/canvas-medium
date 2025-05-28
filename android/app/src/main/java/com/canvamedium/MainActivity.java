@@ -31,14 +31,19 @@ import com.canvamedium.util.NetworkUtils;
 import com.canvamedium.viewmodel.ArticleViewModel;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Main activity that displays a list of articles.
  */
-public class MainActivity extends AppCompatActivity implements ArticleAdapter.OnArticleClickListener {
+public class MainActivity extends AppCompatActivity implements ArticleAdapter.ArticleClickListener {
     
     private RecyclerView recyclerView;
     private FloatingActionButton fabAdd;
@@ -54,6 +59,7 @@ public class MainActivity extends AppCompatActivity implements ArticleAdapter.On
     private NetworkUtils networkUtils;
     private SyncManager syncManager;
     private long categoryId = -1;
+    private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -179,7 +185,7 @@ public class MainActivity extends AppCompatActivity implements ArticleAdapter.On
      * Sets up the RecyclerView.
      */
     private void setupRecyclerView() {
-        articleAdapter = new ArticleAdapter(articleList, this);
+        articleAdapter = new ArticleAdapter(this);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(articleAdapter);
     }
@@ -238,32 +244,69 @@ public class MainActivity extends AppCompatActivity implements ArticleAdapter.On
             articles.add(article);
         }
         
-        // Update the article list
-        articleList.clear();
-        articleList.addAll(articles);
-        articleAdapter.notifyDataSetChanged();
+        // Update the adapter with the new list
+        articleAdapter.submitList(articles);
         
+        // Show the content
         showContent();
     }
     
     /**
-     * Converts an ArticleEntity to an Article.
+     * Converts an ArticleEntity to an Article model.
      */
     private Article convertEntityToArticle(ArticleEntity entity) {
+        Gson gson = new Gson();
+        JsonObject contentJson;
+        try {
+            contentJson = gson.fromJson(entity.getContent(), JsonObject.class);
+        } catch (Exception e) {
+            contentJson = new JsonObject();
+        }
+        
         Article article = new Article();
         article.setId(entity.getId());
         article.setTitle(entity.getTitle());
+        article.setContent(contentJson);
         article.setPreviewText(entity.getPreviewText());
-        article.setContent(entity.getContent());
         article.setThumbnailUrl(entity.getThumbnailUrl());
-        article.setCreatedAt(entity.getCreatedAt());
-        article.setUpdatedAt(entity.getUpdatedAt());
-        article.setPublishedAt(entity.getPublishedAt());
-        article.setStatus(entity.getStatus());
         article.setTemplateId(entity.getTemplateId());
-        article.setBookmarked(entity.isBookmarked());
+        article.setStatus(entity.getStatus());
         
-        // TODO: Set author and category objects if needed
+        // Convert dates from Date to String format
+        if (entity.getPublishedAt() != null) {
+            article.setPublishedAt(DATE_FORMAT.format(entity.getPublishedAt()));
+        }
+        
+        if (entity.getCreatedAt() != null) {
+            article.setCreatedAt(DATE_FORMAT.format(entity.getCreatedAt()));
+        }
+        
+        if (entity.getUpdatedAt() != null) {
+            article.setUpdatedAt(DATE_FORMAT.format(entity.getUpdatedAt()));
+        }
+        
+        article.setBookmarked(entity.isBookmarked());
+        article.setAuthorName(entity.getAuthorName());
+        
+        // Set category if available
+        if (entity.getCategoryId() != null && entity.getCategoryName() != null) {
+            com.canvamedium.model.Category category = new com.canvamedium.model.Category();
+            category.setId(entity.getCategoryId());
+            category.setName(entity.getCategoryName());
+            article.setCategory(category);
+        }
+        
+        // Set tags if available
+        List<String> tagNames = entity.getTags();
+        if (tagNames != null && !tagNames.isEmpty()) {
+            List<com.canvamedium.model.Tag> tags = new ArrayList<>();
+            for (String tagName : tagNames) {
+                com.canvamedium.model.Tag tag = new com.canvamedium.model.Tag();
+                tag.setName(tagName);
+                tags.add(tag);
+            }
+            article.setTags(tags);
+        }
         
         return article;
     }
@@ -337,9 +380,46 @@ public class MainActivity extends AppCompatActivity implements ArticleAdapter.On
         syncManager.syncNow();
     }
     
+    /**
+     * Handle article click event.
+     *
+     * @param article The clicked article
+     */
     @Override
     public void onArticleClick(Article article) {
-        Intent intent = ArticleDetailActivity.newIntent(this, article);
+        Intent intent = new Intent(this, com.canvamedium.activity.ArticleDetailActivity.class);
+        intent.putExtra("EXTRA_ARTICLE_ID", article.getId());
         startActivity(intent);
+    }
+    
+    /**
+     * Handle bookmark click event.
+     *
+     * @param article The article to bookmark/unbookmark
+     * @param isCurrentlyBookmarked Whether the article is currently bookmarked
+     */
+    @Override
+    public void onBookmarkClick(Article article, boolean isCurrentlyBookmarked) {
+        // Toggle bookmark state
+        article.setBookmarked(!isCurrentlyBookmarked);
+        
+        // Update article in repository
+        articleViewModel.toggleBookmark(article.getId(), !isCurrentlyBookmarked)
+                .observe(this, success -> {
+                    if (success) {
+                        articleAdapter.notifyDataSetChanged();
+                        
+                        String message = isCurrentlyBookmarked 
+                                ? "Article removed from bookmarks" 
+                                : "Article added to bookmarks";
+                        Snackbar.make(recyclerView, message, Snackbar.LENGTH_SHORT).show();
+                    } else {
+                        // Revert state on failure
+                        article.setBookmarked(isCurrentlyBookmarked);
+                        articleAdapter.notifyDataSetChanged();
+                        
+                        Snackbar.make(recyclerView, "Failed to update bookmark", Snackbar.LENGTH_SHORT).show();
+                    }
+                });
     }
 } 

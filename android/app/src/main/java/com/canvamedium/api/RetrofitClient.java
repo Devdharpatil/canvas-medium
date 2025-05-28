@@ -53,4 +53,15 @@ public class RetrofitClient {
     public static ApiService getApiService() {
         return getClient().create(ApiService.class);
     }
+    
+    /**
+     * Create an instance of a service interface.
+     *
+     * @param serviceClass The service interface class
+     * @param <T> The type of the service interface
+     * @return An implementation of the service interface
+     */
+    public static <T> T createService(Class<T> serviceClass) {
+        return getClient().create(serviceClass);
+    }
 } 

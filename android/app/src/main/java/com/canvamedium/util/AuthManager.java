@@ -84,7 +84,6 @@ public class AuthManager {
         try {
             // Create or retrieve the master key for encryption
             MasterKey masterKey = new MasterKey.Builder(context)
-                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
                     .setKeyGenParameterSpec(new KeyGenParameterSpec.Builder(
                             "_androidx_security_master_key_",
                             KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
@@ -409,6 +408,14 @@ public class AuthManager {
         Log.d(TAG, "User logged out, auth data cleared");
     }
 
+    /**
+     * Alias for logout() method to maintain backward compatibility.
+     * Some parts of the application may call this method instead of logout().
+     */
+    public void clearAuthData() {
+        logout();
+    }
+    
     /**
      * Check if the user is logged in.
      *

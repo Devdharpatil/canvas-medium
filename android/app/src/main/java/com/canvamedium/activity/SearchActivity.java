@@ -2,6 +2,7 @@ package com.canvamedium.activity;
 
 import android.app.SearchManager;
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.View;
@@ -37,7 +38,7 @@ import retrofit2.Response;
 /**
  * Activity for searching and filtering articles.
  */
-public class SearchActivity extends AppCompatActivity {
+public class SearchActivity extends AppCompatActivity implements ArticleAdapter.ArticleClickListener {
     
     private RecyclerView recyclerView;
     private ArticleAdapter adapter;
@@ -77,7 +78,7 @@ public class SearchActivity extends AppCompatActivity {
         // Set up RecyclerView
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         articleList = new ArrayList<>();
-        adapter = new ArticleAdapter(this, articleList);
+        adapter = new ArticleAdapter(this);
         recyclerView.setAdapter(adapter);
         
         // Set up swipe refresh
@@ -383,5 +384,19 @@ public class SearchActivity extends AppCompatActivity {
         emptyStateTextView.setVisibility(View.VISIBLE);
         emptyStateTextView.setText(getString(R.string.error_message, message));
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public void onArticleClick(Article article) {
+        Intent intent = new Intent(this, ArticleDetailActivity.class);
+        intent.putExtra(ArticleDetailActivity.EXTRA_ARTICLE_ID, article.getId());
+        startActivity(intent);
+    }
+
+    @Override
+    public void onBookmarkClick(Article article, boolean isCurrentlyBookmarked) {
+        Toast.makeText(this, 
+                isCurrentlyBookmarked ? "Bookmarked" : "Unbookmarked", 
+                Toast.LENGTH_SHORT).show();
     }
 } 

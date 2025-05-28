@@ -24,6 +24,9 @@ import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 import retrofit2.Response;
 
+import java.text.SimpleDateFormat;
+import java.util.Locale;
+
 /**
  * Repository for handling tag data from both local database and remote API.
  * This class mediates between the various data sources and the rest of the app.
@@ -204,11 +207,37 @@ public class TagRepository {
      * @return the Room TagEntity
      */
     private TagEntity convertToTagEntity(Tag tag) {
+        // Convert date strings to Date objects
+        Date createdAt = null;
+        Date updatedAt = null;
+        
+        try {
+            if (tag.getCreatedAt() != null && !tag.getCreatedAt().isEmpty()) {
+                SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
+                createdAt = dateFormat.parse(tag.getCreatedAt());
+            }
+            
+            if (tag.getUpdatedAt() != null && !tag.getUpdatedAt().isEmpty()) {
+                SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
+                updatedAt = dateFormat.parse(tag.getUpdatedAt());
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error parsing dates for tag", e);
+        }
+        
+        if (createdAt == null) {
+            createdAt = new Date();
+        }
+        
+        if (updatedAt == null) {
+            updatedAt = new Date();
+        }
+        
         return new TagEntity(
                 tag.getName(),
                 tag.getCount(),
-                tag.getCreatedAt(),
-                tag.getUpdatedAt()
+                createdAt,
+                updatedAt
         );
     }
 

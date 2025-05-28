@@ -52,7 +52,11 @@ public class ApiClient {
     public static Retrofit getClient() {
         // For testing purposes
         if (mockMode) {
-            return new MockRetrofit();
+            // Create a basic Retrofit instance for mocking
+            return new Retrofit.Builder()
+                    .baseUrl(BASE_URL)
+                    .addConverterFactory(GsonConverterFactory.create())
+                    .build();
         }
         
         if (retrofit == null) {
@@ -78,7 +82,11 @@ public class ApiClient {
     public static Retrofit getAuthenticatedClient(Context context) {
         // For testing purposes
         if (mockMode) {
-            return new MockRetrofit();
+            // Create a basic Retrofit instance for mocking
+            return new Retrofit.Builder()
+                    .baseUrl(BASE_URL)
+                    .addConverterFactory(GsonConverterFactory.create())
+                    .build();
         }
         
         return new Retrofit.Builder()
@@ -230,20 +238,43 @@ public class ApiClient {
         mockUserService = null;
         mockMode = false;
     }
-    
+
     /**
-     * Mock Retrofit class for testing.
+     * Create service interface implementation - with special handling for mock services during testing.
+     *
+     * @param serviceClass The service interface class
+     * @param <T> The type of the service
+     * @return The service implementation
      */
-    private static class MockRetrofit extends Retrofit {
-        @Override
-        public <T> T create(final Class<T> service) {
-            if (service == AuthService.class && mockAuthService != null) {
+    public static <T> T createService(Class<T> serviceClass) {
+        if (mockMode) {
+            if (serviceClass == AuthService.class && mockAuthService != null) {
                 return (T) mockAuthService;
             }
-            if (service == UserService.class && mockUserService != null) {
+            if (serviceClass == UserService.class && mockUserService != null) {
                 return (T) mockUserService;
             }
-            return null;
         }
+        return getClient().create(serviceClass);
+    }
+
+    /**
+     * Create authenticated service interface implementation.
+     *
+     * @param serviceClass The service interface class
+     * @param context The context for authentication
+     * @param <T> The type of the service
+     * @return The service implementation
+     */
+    public static <T> T createAuthenticatedService(Class<T> serviceClass, Context context) {
+        if (mockMode) {
+            if (serviceClass == AuthService.class && mockAuthService != null) {
+                return (T) mockAuthService;
+            }
+            if (serviceClass == UserService.class && mockUserService != null) {
+                return (T) mockUserService;
+            }
+        }
+        return getAuthenticatedClient(context).create(serviceClass);
     }
 } 

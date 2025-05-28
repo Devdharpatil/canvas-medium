@@ -29,7 +29,7 @@
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
         <activity
-            android:name=".MainActivity"
+            android:name=".activity.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -37,18 +37,18 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".ContentEditorActivity"
+            android:name=".activity.ContentEditorActivity"
             android:exported="false"
-            android:parentActivityName=".MainActivity" />
+            android:parentActivityName=".activity.MainActivity" />
         <activity
-            android:name=".ArticleDetailActivity"
+            android:name=".activity.ArticleDetailActivity"
             android:exported="false"
-            android:parentActivityName=".MainActivity"
+            android:parentActivityName=".activity.MainActivity"
             android:theme="@style/Theme.CanvaMedium.NoActionBar" />
         <activity
             android:name=".activity.TemplateListActivity"
             android:exported="false"
-            android:parentActivityName=".MainActivity"
+            android:parentActivityName=".activity.MainActivity"
             android:label="Templates" />
         <activity
             android:name=".activity.TemplateBuilderActivity"
@@ -59,12 +59,12 @@
         <activity
             android:name=".activity.ArticleEditorActivity"
             android:exported="false"
-            android:parentActivityName=".MainActivity"
+            android:parentActivityName=".activity.MainActivity"
             android:label="Article Editor" />
         <activity
             android:name=".activity.SearchActivity"
             android:exported="false"
-            android:parentActivityName=".MainActivity"
+            android:parentActivityName=".activity.MainActivity"
             android:label="@string/search_articles">
             <intent-filter>
                 <action android:name="android.intent.action.SEARCH" />
@@ -74,6 +74,10 @@
                 android:resource="@xml/searchable" />
         </activity>
         <activity
+            android:name=".activity.LoginActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
             android:name=".activity.RegisterActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
@@ -81,23 +85,23 @@
             android:name=".activity.UserProfileActivity"
             android:exported="false"
             android:label="@string/profile_title"
-            android:parentActivityName=".MainActivity"
+            android:parentActivityName=".activity.MainActivity"
             android:theme="@style/Theme.CanvaMedium.NoActionBar" />
         <activity
             android:name=".activity.CategoryBrowseActivity"
             android:exported="false"
             android:label="@string/categories"
-            android:parentActivityName=".MainActivity" />
+            android:parentActivityName=".activity.MainActivity" />
         <activity
             android:name=".activity.BookmarkedArticlesActivity"
             android:exported="false"
             android:label="Bookmarks"
-            android:parentActivityName=".MainActivity" />
+            android:parentActivityName=".activity.MainActivity" />
         <activity
             android:name=".activity.SettingsActivity"
             android:exported="false"
             android:label="Settings"
-            android:parentActivityName=".MainActivity" />
+            android:parentActivityName=".activity.MainActivity" />
         
         <!-- File provider for camera images -->
         <provider

@@ -175,8 +175,11 @@ public class RegisterActivity extends AppCompatActivity {
                 if (response.isSuccessful() && response.body() != null) {
                     // Save tokens and user info
                     LoginResponse loginResponse = response.body();
-                    authManager.saveToken(loginResponse.getToken());
-                    authManager.saveRefreshToken(loginResponse.getRefreshToken());
+                    authManager.saveToken(
+                        loginResponse.getToken(),
+                        loginResponse.getRefreshToken(),
+                        loginResponse.getExpiry()
+                    );
                     authManager.saveUserId(loginResponse.getUserId());
                     authManager.saveUsername(loginResponse.getUsername());
 

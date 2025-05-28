@@ -24,6 +24,9 @@ import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 import retrofit2.Response;
 
+import java.text.SimpleDateFormat;
+import java.util.Locale;
+
 /**
  * Repository for handling category data from both local database and remote API.
  * This class mediates between the various data sources and the rest of the app.
@@ -193,13 +196,39 @@ public class CategoryRepository {
      * @return the Room CategoryEntity
      */
     private CategoryEntity convertToCategoryEntity(Category category) {
+        // Convert date strings to Date objects
+        Date createdAt = null;
+        Date updatedAt = null;
+        
+        try {
+            if (category.getCreatedAt() != null && !category.getCreatedAt().isEmpty()) {
+                SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
+                createdAt = dateFormat.parse(category.getCreatedAt());
+            }
+            
+            if (category.getUpdatedAt() != null && !category.getUpdatedAt().isEmpty()) {
+                SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
+                updatedAt = dateFormat.parse(category.getUpdatedAt());
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error parsing dates for category", e);
+        }
+        
+        if (createdAt == null) {
+            createdAt = new Date();
+        }
+        
+        if (updatedAt == null) {
+            updatedAt = new Date();
+        }
+        
         return new CategoryEntity(
                 category.getId(),
                 category.getName(),
                 category.getDescription(),
                 category.getIconUrl(),
-                category.getCreatedAt(),
-                category.getUpdatedAt(),
+                createdAt,
+                updatedAt,
                 category.getArticleCount()
         );
     }

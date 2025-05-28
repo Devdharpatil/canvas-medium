@@ -11,6 +11,7 @@ import com.canvamedium.db.CanvaMediumDatabase;
 import com.canvamedium.db.dao.ArticleDao;
 import com.canvamedium.db.entity.ArticleEntity;
 import com.canvamedium.model.Article;
+import com.canvamedium.model.Tag;
 import com.canvamedium.util.NetworkUtils;
 
 import java.util.ArrayList;
@@ -26,6 +27,10 @@ import io.reactivex.rxjava3.schedulers.Schedulers;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+import okhttp3.ResponseBody;
+
+import java.text.SimpleDateFormat;
+import java.util.Locale;
 
 /**
  * Repository for handling article data from both local database and remote API.
@@ -90,7 +95,11 @@ public class ArticleRepository {
      */
     public Single<ArticleEntity> getArticleById(long articleId) {
         refreshArticle(articleId);
-        return articleDao.getArticleById(articleId);
+        return articleDao.getArticleById(articleId)
+                .onErrorResumeNext(throwable -> {
+                    Log.e(TAG, "Error getting article by ID: " + articleId, throwable);
+                    return Single.error(new Exception("Article not found with ID: " + articleId));
+                });
     }
 
     /**
@@ -152,7 +161,7 @@ public class ArticleRepository {
     private void syncArticleBookmarkStatus(long articleId, boolean isBookmarked) {
         executor.execute(() -> {
             try {
-                Response<Void> response;
+                Response<ResponseBody> response;
                 if (isBookmarked) {
                     response = apiService.bookmarkArticle(articleId).execute();
                 } else {
@@ -292,22 +301,69 @@ public class ArticleRepository {
      * @return the Room ArticleEntity
      */
     private ArticleEntity convertToArticleEntity(Article article) {
+        // Convert JsonObject to String
+        String contentString = null;
+        if (article.getContent() != null) {
+            contentString = article.getContent().toString();
+        }
+        
+        // Convert date strings to Date objects
+        Date createdAt = null;
+        Date updatedAt = null;
+        Date publishedAt = null;
+        
+        try {
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
+            
+            if (article.getCreatedAt() != null && !article.getCreatedAt().isEmpty()) {
+                createdAt = dateFormat.parse(article.getCreatedAt());
+            }
+            
+            if (article.getUpdatedAt() != null && !article.getUpdatedAt().isEmpty()) {
+                updatedAt = dateFormat.parse(article.getUpdatedAt());
+            }
+            
+            if (article.getPublishedAt() != null && !article.getPublishedAt().isEmpty()) {
+                publishedAt = dateFormat.parse(article.getPublishedAt());
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error parsing dates", e);
+        }
+        
+        if (createdAt == null) {
+            createdAt = new Date();
+        }
+        
+        if (updatedAt == null) {
+            updatedAt = new Date();
+        }
+        
+        // Convert List<Tag> to List<String>
+        List<String> tagStrings = new ArrayList<>();
+        if (article.getTags() != null) {
+            for (Tag tag : article.getTags()) {
+                if (tag != null && tag.getName() != null) {
+                    tagStrings.add(tag.getName());
+                }
+            }
+        }
+        
         return new ArticleEntity(
                 article.getId(),
                 article.getTitle(),
                 article.getPreviewText(),
-                article.getContent(),
+                contentString,
                 article.getThumbnailUrl(),
                 article.getAuthor() != null ? article.getAuthor().getId() : null,
                 article.getAuthor() != null ? article.getAuthor().getName() : null,
-                article.getCreatedAt(),
-                article.getUpdatedAt(),
-                article.getPublishedAt(),
+                createdAt,
+                updatedAt,
+                publishedAt,
                 article.getStatus(),
                 article.getTemplateId(),
                 article.getCategory() != null ? article.getCategory().getId() : null,
                 article.getCategory() != null ? article.getCategory().getName() : null,
-                article.getTags(),
+                tagStrings,
                 article.isBookmarked()
         );
     }

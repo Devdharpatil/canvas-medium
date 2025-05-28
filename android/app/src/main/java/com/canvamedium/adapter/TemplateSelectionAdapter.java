@@ -124,11 +124,11 @@ public class TemplateSelectionAdapter extends RecyclerView.Adapter<TemplateSelec
         
         // Highlight the selected template
         if (position == selectedPosition) {
-            holder.cardView.setStrokeWidth(6); // Selected state with thicker stroke
-            holder.cardView.setStrokeColor(context.getResources().getColor(R.color.colorAccent));
+            holder.cardView.setCardElevation(8f); // Increase elevation for selected card
+            holder.cardView.setCardBackgroundColor(context.getResources().getColor(R.color.colorPrimaryLight));
         } else {
-            holder.cardView.setStrokeWidth(0); // Normal state without stroke
-            holder.cardView.setStrokeColor(0);
+            holder.cardView.setCardElevation(4f); // Default elevation
+            holder.cardView.setCardBackgroundColor(context.getResources().getColor(android.R.color.white));
         }
         
         // Handle click events
@@ -156,7 +156,7 @@ public class TemplateSelectionAdapter extends RecyclerView.Adapter<TemplateSelec
 
         TemplateViewHolder(@NonNull View itemView) {
             super(itemView);
-            cardView = itemView.findViewById(R.id.template_card);
+            cardView = itemView.findViewById(R.id.card_template);
             thumbnailImageView = itemView.findViewById(R.id.template_thumbnail);
             nameTextView = itemView.findViewById(R.id.template_name);
             descriptionTextView = itemView.findViewById(R.id.template_description);

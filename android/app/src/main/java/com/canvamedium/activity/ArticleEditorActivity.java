@@ -56,6 +56,9 @@ public class ArticleEditorActivity extends AppCompatActivity implements Template
     private static final int REQUEST_IMAGE_PICK = 100;
     private static final int REQUEST_CONTENT_IMAGE = 101;
     
+    // Intent extra keys
+    public static final String EXTRA_ARTICLE_ID = "EXTRA_ARTICLE_ID";
+    
     private TextInputEditText titleEditText;
     private TextInputEditText previewTextEditText;
     private ImageView thumbnailImageView;

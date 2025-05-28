@@ -77,10 +77,39 @@ public class BookmarkedArticlesFragment extends Fragment {
         LinearLayoutManager layoutManager = new LinearLayoutManager(requireContext());
         recyclerView.setLayoutManager(layoutManager);
 
-        articleAdapter = new ArticleAdapter(requireContext(), article -> {
-            Intent intent = new Intent(requireActivity(), ArticleDetailActivity.class);
-            intent.putExtra(ArticleDetailActivity.EXTRA_ARTICLE_ID, article.getId());
-            startActivity(intent);
+        articleAdapter = new ArticleAdapter(new ArticleAdapter.ArticleClickListener() {
+            @Override
+            public void onArticleClick(Article article) {
+                Intent intent = new Intent(requireActivity(), ArticleDetailActivity.class);
+                intent.putExtra(ArticleDetailActivity.EXTRA_ARTICLE_ID, article.getId());
+                startActivity(intent);
+            }
+            
+            @Override
+            public void onBookmarkClick(Article article, boolean isCurrentlyBookmarked) {
+                // Handle bookmark click
+                // Toggle the bookmark status
+                BookmarkService bookmarkService = RetrofitClient.createService(BookmarkService.class);
+                if (isCurrentlyBookmarked) {
+                    bookmarkService.removeBookmark(article.getId()).enqueue(new Callback<Void>() {
+                        @Override
+                        public void onResponse(@NonNull Call<Void> call, @NonNull Response<Void> response) {
+                            if (response.isSuccessful()) {
+                                // Refresh the list
+                                swipeRefreshLayout.setRefreshing(true);
+                                loadBookmarkedArticles();
+                            } else {
+                                showErrorMessage("Failed to remove bookmark");
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(@NonNull Call<Void> call, @NonNull Throwable t) {
+                            showErrorMessage("Error: " + t.getMessage());
+                        }
+                    });
+                }
+            }
         });
         recyclerView.setAdapter(articleAdapter);
 

@@ -12,6 +12,9 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.canvamedium.databinding.ItemArticleBinding;
 import com.canvamedium.model.Article;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Adapter for displaying articles in a RecyclerView.
  */
@@ -69,6 +72,33 @@ public class ArticleAdapter extends ListAdapter<Article, ArticleAdapter.ArticleV
     public void onBindViewHolder(@NonNull ArticleViewHolder holder, int position) {
         Article article = getItem(position);
         holder.bind(article);
+    }
+
+    /**
+     * Updates the adapter with a new list of articles.
+     *
+     * @param articles The new list of articles
+     */
+    public void setArticles(List<Article> articles) {
+        submitList(articles);
+    }
+    
+    /**
+     * Adds articles to the current list for pagination.
+     *
+     * @param articles The articles to add
+     */
+    public void addArticles(List<Article> articles) {
+        List<Article> currentList = new ArrayList<>(getCurrentList());
+        currentList.addAll(articles);
+        submitList(currentList);
+    }
+    
+    /**
+     * Clears all articles from the list.
+     */
+    public void clearArticles() {
+        submitList(null);
     }
 
     /**

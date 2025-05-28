@@ -21,6 +21,15 @@ public class Tag {
 
     @SerializedName("articleCount")
     private int articleCount;
+    
+    @SerializedName("count")
+    private int count;
+    
+    @SerializedName("created_at")
+    private String createdAt;
+    
+    @SerializedName("updated_at")
+    private String updatedAt;
 
     /**
      * Default constructor.
@@ -74,6 +83,27 @@ public class Tag {
             Object countObj = map.get("articleCount");
             if (countObj instanceof Number) {
                 tag.setArticleCount(((Number) countObj).intValue());
+            }
+        }
+        
+        if (map.containsKey("count")) {
+            Object countObj = map.get("count");
+            if (countObj instanceof Number) {
+                tag.setCount(((Number) countObj).intValue());
+            }
+        }
+        
+        if (map.containsKey("created_at")) {
+            Object createdAtObj = map.get("created_at");
+            if (createdAtObj != null) {
+                tag.setCreatedAt(createdAtObj.toString());
+            }
+        }
+        
+        if (map.containsKey("updated_at")) {
+            Object updatedAtObj = map.get("updated_at");
+            if (updatedAtObj != null) {
+                tag.setUpdatedAt(updatedAtObj.toString());
             }
         }
         
@@ -150,6 +180,60 @@ public class Tag {
      */
     public void setArticleCount(int articleCount) {
         this.articleCount = articleCount;
+    }
+    
+    /**
+     * Gets the usage count of this tag.
+     *
+     * @return The tag usage count
+     */
+    public int getCount() {
+        return count;
+    }
+    
+    /**
+     * Sets the usage count of this tag.
+     *
+     * @param count The tag usage count
+     */
+    public void setCount(int count) {
+        this.count = count;
+    }
+    
+    /**
+     * Gets the creation timestamp.
+     *
+     * @return The creation timestamp
+     */
+    public String getCreatedAt() {
+        return createdAt;
+    }
+    
+    /**
+     * Sets the creation timestamp.
+     *
+     * @param createdAt The creation timestamp
+     */
+    public void setCreatedAt(String createdAt) {
+        this.createdAt = createdAt;
+    }
+    
+    /**
+     * Gets the last update timestamp.
+     *
+     * @return The last update timestamp
+     */
+    public String getUpdatedAt() {
+        return updatedAt;
+    }
+    
+    /**
+     * Sets the last update timestamp.
+     *
+     * @param updatedAt The last update timestamp
+     */
+    public void setUpdatedAt(String updatedAt) {
+        this.updatedAt = updatedAt;
     }
 
     @Override

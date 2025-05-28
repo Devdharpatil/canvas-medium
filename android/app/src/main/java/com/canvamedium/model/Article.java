@@ -61,6 +61,15 @@ public class Article implements Serializable {
     @SerializedName("bookmarked")
     private boolean bookmarked;
     
+    @SerializedName("author_name")
+    private String authorName;
+    
+    @SerializedName("author")
+    private User author;
+    
+    @SerializedName("category")
+    private Category category;
+    
     /**
      * Default constructor for Retrofit serialization.
      */
@@ -214,6 +223,12 @@ public class Article implements Serializable {
             }
         }
         
+        if (map.containsKey("category") && map.get("category") instanceof Map) {
+            Map<?, ?> categoryMap = (Map<?, ?>) map.get("category");
+            Category category = Category.fromMap(categoryMap);
+            article.setCategory(category);
+        }
+        
         if (map.containsKey("tags")) {
             Object tagsObj = map.get("tags");
             if (tagsObj instanceof List) {
@@ -233,6 +248,19 @@ public class Article implements Serializable {
             if (bookmarkedObj instanceof Boolean) {
                 article.setBookmarked((Boolean) bookmarkedObj);
             }
+        }
+        
+        if (map.containsKey("author_name")) {
+            Object authorNameObj = map.get("author_name");
+            if (authorNameObj != null) {
+                article.setAuthorName(authorNameObj.toString());
+            }
+        }
+        
+        if (map.containsKey("author") && map.get("author") instanceof Map) {
+            Map<?, ?> authorMap = (Map<?, ?>) map.get("author");
+            User author = User.fromMap(authorMap);
+            article.setAuthor(author);
         }
         
         return article;
@@ -410,6 +438,24 @@ public class Article implements Serializable {
     public void setCategories(List<Category> categories) {
         this.categories = categories != null ? categories : new ArrayList<>();
     }
+    
+    /**
+     * Gets the primary category of the article.
+     *
+     * @return The primary category
+     */
+    public Category getCategory() {
+        return category;
+    }
+    
+    /**
+     * Sets the primary category of the article.
+     *
+     * @param category The primary category
+     */
+    public void setCategory(Category category) {
+        this.category = category;
+    }
 
     /**
      * Gets the tags associated with this article.
@@ -445,5 +491,44 @@ public class Article implements Serializable {
      */
     public void setBookmarked(boolean bookmarked) {
         this.bookmarked = bookmarked;
+    }
+
+    /**
+     * Gets the author name of the article.
+     *
+     * @return The author name
+     */
+    public String getAuthorName() {
+        return authorName;
+    }
+    
+    /**
+     * Sets the author name of the article.
+     *
+     * @param authorName The author name
+     */
+    public void setAuthorName(String authorName) {
+        this.authorName = authorName;
+    }
+    
+    /**
+     * Gets the author of the article.
+     *
+     * @return The author
+     */
+    public User getAuthor() {
+        return author;
+    }
+    
+    /**
+     * Sets the author of the article.
+     *
+     * @param author The author
+     */
+    public void setAuthor(User author) {
+        this.author = author;
+        if (author != null) {
+            this.authorName = author.getName();
+        }
     }
 } 

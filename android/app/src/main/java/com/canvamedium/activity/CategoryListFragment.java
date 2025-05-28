@@ -142,49 +142,112 @@ public class CategoryListFragment extends Fragment implements CategoryAdapter.On
             swipeRefreshLayout.setRefreshing(true);
         }
 
-        Call<? extends Object> call;
-
         switch (type) {
             case TYPE_FEATURED:
-                call = categoryService.getFeaturedCategories(currentPage, PAGE_SIZE);
+                Call<ApiResponse<List<Category>>> featuredCall = categoryService.getFeaturedCategories(currentPage, PAGE_SIZE);
+                featuredCall.enqueue(new Callback<ApiResponse<List<Category>>>() {
+                    @Override
+                    public void onResponse(@NonNull Call<ApiResponse<List<Category>>> call, @NonNull Response<ApiResponse<List<Category>>> response) {
+                        handleApiResponse(response);
+                    }
+
+                    @Override
+                    public void onFailure(@NonNull Call<ApiResponse<List<Category>>> call, @NonNull Throwable t) {
+                        handleCallFailure(t);
+                    }
+                });
                 break;
             case TYPE_POPULAR:
-                call = categoryService.getPopularCategories(currentPage, PAGE_SIZE);
+                Call<ApiResponse<List<Category>>> popularCall = categoryService.getPopularCategories(currentPage, PAGE_SIZE);
+                popularCall.enqueue(new Callback<ApiResponse<List<Category>>>() {
+                    @Override
+                    public void onResponse(@NonNull Call<ApiResponse<List<Category>>> call, @NonNull Response<ApiResponse<List<Category>>> response) {
+                        handleApiResponse(response);
+                    }
+
+                    @Override
+                    public void onFailure(@NonNull Call<ApiResponse<List<Category>>> call, @NonNull Throwable t) {
+                        handleCallFailure(t);
+                    }
+                });
                 break;
             case TYPE_ALL:
             default:
                 if (currentPage == 0) {
-                    call = categoryService.getTopLevelCategories();
+                    Call<List<Category>> topLevelCall = categoryService.getTopLevelCategories();
+                    topLevelCall.enqueue(new Callback<List<Category>>() {
+                        @Override
+                        public void onResponse(@NonNull Call<List<Category>> call, @NonNull Response<List<Category>> response) {
+                            handleListResponse(response);
+                        }
+
+                        @Override
+                        public void onFailure(@NonNull Call<List<Category>> call, @NonNull Throwable t) {
+                            handleCallFailure(t);
+                        }
+                    });
                 } else {
-                    call = categoryService.getCategories(currentPage, PAGE_SIZE);
+                    Call<ApiResponse<List<Category>>> paginatedCall = categoryService.getCategories(currentPage, PAGE_SIZE);
+                    paginatedCall.enqueue(new Callback<ApiResponse<List<Category>>>() {
+                        @Override
+                        public void onResponse(@NonNull Call<ApiResponse<List<Category>>> call, @NonNull Response<ApiResponse<List<Category>>> response) {
+                            handleApiResponse(response);
+                        }
+
+                        @Override
+                        public void onFailure(@NonNull Call<ApiResponse<List<Category>>> call, @NonNull Throwable t) {
+                            handleCallFailure(t);
+                        }
+                    });
                 }
                 break;
         }
+    }
 
-        call.enqueue(new Callback<Object>() {
-            @Override
-            public void onResponse(@NonNull Call<Object> call, @NonNull Response<Object> response) {
-                isLoading = false;
-                swipeRefreshLayout.setRefreshing(false);
+    /**
+     * Handles API response for paginated data.
+     */
+    private <T> void handleApiResponse(Response<ApiResponse<List<Category>>> response) {
+        isLoading = false;
+        swipeRefreshLayout.setRefreshing(false);
 
-                if (response.isSuccessful() && response.body() != null) {
-                    if (response.body() instanceof ApiResponse) {
-                        handlePaginatedResponse((ApiResponse<List<Category>>) response.body());
-                    } else if (response.body() instanceof List) {
-                        handleListResponse((List<Category>) response.body());
-                    }
-                } else {
-                    Toast.makeText(requireContext(), getString(R.string.error_loading_categories), Toast.LENGTH_SHORT).show();
+        if (response.isSuccessful() && response.body() != null) {
+            handlePaginatedResponse(response.body());
+        } else {
+            Toast.makeText(requireContext(), getString(R.string.error_loading_categories), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /**
+     * Handles list response for non-paginated data.
+     */
+    private void handleListResponse(Response<List<Category>> response) {
+        isLoading = false;
+        swipeRefreshLayout.setRefreshing(false);
+
+        if (response.isSuccessful() && response.body() != null) {
+            List<Category> categories = response.body();
+            if (categories != null && !categories.isEmpty()) {
+                adapter.addCategories(categories);
+                hasMoreData = categories.size() >= PAGE_SIZE;
+            } else {
+                hasMoreData = false;
+                if (currentPage == 0) {
+                    showEmptyState();
                 }
             }
+        } else {
+            Toast.makeText(requireContext(), getString(R.string.error_loading_categories), Toast.LENGTH_SHORT).show();
+        }
+    }
 
-            @Override
-            public void onFailure(@NonNull Call<Object> call, @NonNull Throwable t) {
-                isLoading = false;
-                swipeRefreshLayout.setRefreshing(false);
-                Toast.makeText(requireContext(), getString(R.string.error_loading_categories), Toast.LENGTH_SHORT).show();
-            }
-        });
+    /**
+     * Handles call failure.
+     */
+    private void handleCallFailure(Throwable t) {
+        isLoading = false;
+        swipeRefreshLayout.setRefreshing(false);
+        Toast.makeText(requireContext(), getString(R.string.error_loading_categories), Toast.LENGTH_SHORT).show();
     }
 
     /**
@@ -197,23 +260,6 @@ public class CategoryListFragment extends Fragment implements CategoryAdapter.On
         if (categories != null && !categories.isEmpty()) {
             adapter.addCategories(categories);
             hasMoreData = !response.isLast();
-        } else {
-            hasMoreData = false;
-            if (currentPage == 0) {
-                showEmptyState();
-            }
-        }
-    }
-
-    /**
-     * Handles non-paginated list response from the API.
-     *
-     * @param categories The list of categories
-     */
-    private void handleListResponse(List<Category> categories) {
-        if (categories != null && !categories.isEmpty()) {
-            adapter.addCategories(categories);
-            hasMoreData = categories.size() >= PAGE_SIZE;
         } else {
             hasMoreData = false;
             if (currentPage == 0) {

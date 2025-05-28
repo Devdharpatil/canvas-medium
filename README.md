@@ -9,6 +9,7 @@ CanvaMedium is a full-stack application consisting of:
 - Android mobile application (Java)
 - PostgreSQL database
 
+
 The application allows users to:
 - Create and manage design templates
 - Author articles using these templates

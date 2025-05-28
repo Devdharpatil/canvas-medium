@@ -2,6 +2,9 @@ package com.canvamedium;
 
 import android.app.Application;
 
+import androidx.work.Configuration;
+import androidx.work.WorkManager;
+
 import com.canvamedium.api.ApiClient;
 import com.canvamedium.db.CanvaMediumDatabase;
 import com.canvamedium.sync.SyncManager;
@@ -12,7 +15,7 @@ import com.canvamedium.util.AppExceptionHandler;
  * This is the entry point for the application and is used to initialize
  * global components.
  */
-public class CanvaMediumApplication extends Application {
+public class CanvaMediumApplication extends Application implements Configuration.Provider {
 
     private SyncManager syncManager;
 
@@ -32,6 +35,9 @@ public class CanvaMediumApplication extends Application {
         // Initialize the API client with caching
         ApiClient.init(this);
 
+        // Initialize WorkManager
+        WorkManager.initialize(this, getWorkManagerConfiguration());
+
         // Initialize the sync manager
         syncManager = new SyncManager(this);
 
@@ -46,5 +52,16 @@ public class CanvaMediumApplication extends Application {
      */
     public SyncManager getSyncManager() {
         return syncManager;
+    }
+
+    /**
+     * Provides the WorkManager configuration
+     * This is required as we've disabled the default initializer in the manifest
+     */
+    @Override
+    public Configuration getWorkManagerConfiguration() {
+        return new Configuration.Builder()
+                .setMinimumLoggingLevel(android.util.Log.INFO)
+                .build();
     }
 } 

@@ -81,12 +81,12 @@ public class ArticleDetailActivity extends AppCompatActivity {
      * Initializes the views.
      */
     private void initializeViews() {
-        textArticleTitle = findViewById(R.id.textArticleTitle);
-        textTemplateName = findViewById(R.id.textTemplateName);
-        textDate = findViewById(R.id.textDate);
-        textArticleContent = findViewById(R.id.textArticleContent);
-        imageArticleHeader = findViewById(R.id.imageArticleHeader);
-        collapsingToolbar = findViewById(R.id.collapsingToolbar);
+        textArticleTitle = findViewById(R.id.text_content);
+        textTemplateName = findViewById(R.id.text_template_info);
+        textDate = findViewById(R.id.text_date);
+        textArticleContent = findViewById(R.id.text_content);
+        imageArticleHeader = findViewById(R.id.image_header);
+        collapsingToolbar = findViewById(R.id.collapsing_toolbar);
     }
     
     /**
@@ -198,7 +198,7 @@ public class ArticleDetailActivity extends AppCompatActivity {
      * Sets up the share button.
      */
     private void setupShareButton() {
-        FloatingActionButton fabShare = findViewById(R.id.fabShare);
+        FloatingActionButton fabShare = findViewById(R.id.fab_share);
         fabShare.setOnClickListener(v -> shareArticle());
     }
     

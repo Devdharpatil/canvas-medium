@@ -8,6 +8,7 @@ import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
 import com.canvamedium.db.entity.ArticleEntity;
+import com.canvamedium.model.Article;
 import com.canvamedium.repository.ArticleRepository;
 
 import java.util.List;
@@ -66,6 +67,97 @@ public class ArticleViewModel extends AndroidViewModel {
     }
 
     /**
+     * Get an article by ID
+     *
+     * @param articleId the article ID
+     * @return LiveData emitting the article
+     */
+    public LiveData<Article> getArticleById(long articleId) {
+        MutableLiveData<Article> articleLiveData = new MutableLiveData<>();
+        
+        disposables.add(
+            articleRepository.getArticleById(articleId)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                    articleEntity -> {
+                        Article article = convertEntityToArticle(articleEntity);
+                        articleLiveData.setValue(article);
+                    },
+                    throwable -> {
+                        errorMessage.setValue("Error fetching article: " + throwable.getMessage());
+                        articleLiveData.setValue(null);
+                    }
+                )
+        );
+        
+        return articleLiveData;
+    }
+
+    /**
+     * Converts an ArticleEntity to an Article model.
+     */
+    private Article convertEntityToArticle(ArticleEntity entity) {
+        com.google.gson.Gson gson = new com.google.gson.Gson();
+        com.google.gson.JsonObject contentJson;
+        try {
+            contentJson = gson.fromJson(entity.getContent(), com.google.gson.JsonObject.class);
+        } catch (Exception e) {
+            contentJson = new com.google.gson.JsonObject();
+        }
+        
+        Article article = new Article();
+        article.setId(entity.getId());
+        article.setTitle(entity.getTitle());
+        article.setContent(contentJson);
+        article.setPreviewText(entity.getPreviewText());
+        article.setThumbnailUrl(entity.getThumbnailUrl());
+        article.setTemplateId(entity.getTemplateId());
+        article.setStatus(entity.getStatus());
+        
+        // Convert dates from Date to String format
+        java.text.SimpleDateFormat dateFormat = new java.text.SimpleDateFormat(
+                "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US);
+        
+        if (entity.getPublishedAt() != null) {
+            article.setPublishedAt(dateFormat.format(entity.getPublishedAt()));
+        }
+        
+        if (entity.getCreatedAt() != null) {
+            article.setCreatedAt(dateFormat.format(entity.getCreatedAt()));
+        }
+        
+        if (entity.getUpdatedAt() != null) {
+            article.setUpdatedAt(dateFormat.format(entity.getUpdatedAt()));
+        }
+        
+        article.setBookmarked(entity.isBookmarked());
+        article.setAuthorName(entity.getAuthorName());
+        
+        // Set category if available
+        if (entity.getCategoryId() != null && entity.getCategoryName() != null) {
+            com.canvamedium.model.Category category = new com.canvamedium.model.Category();
+            category.setId(entity.getCategoryId());
+            category.setName(entity.getCategoryName());
+            article.setCategory(category);
+        }
+        
+        // Set tags if available
+        java.util.List<String> tagNames = entity.getTags();
+        if (tagNames != null && !tagNames.isEmpty()) {
+            java.util.List<com.canvamedium.model.Tag> tags = new java.util.ArrayList<>();
+            for (String tagName : tagNames) {
+                com.canvamedium.model.Tag tag = new com.canvamedium.model.Tag();
+                tag.setName(tagName);
+                tags.add(tag);
+            }
+            article.setTags(tags);
+        }
+        
+        return article;
+    }
+
+    /**
      * Search articles by query
      *
      * @param query the search query
@@ -80,8 +172,11 @@ public class ArticleViewModel extends AndroidViewModel {
      *
      * @param articleId the ID of the article
      * @param isBookmarked whether to bookmark or unbookmark the article
+     * @return LiveData emitting a boolean indicating success
      */
-    public void toggleBookmark(long articleId, boolean isBookmarked) {
+    public LiveData<Boolean> toggleBookmark(long articleId, boolean isBookmarked) {
+        MutableLiveData<Boolean> resultLiveData = new MutableLiveData<>();
+        
         disposables.add(
             articleRepository.toggleBookmark(articleId, isBookmarked)
                 .subscribeOn(Schedulers.io())
@@ -89,12 +184,27 @@ public class ArticleViewModel extends AndroidViewModel {
                 .subscribe(
                     () -> {
                         // Successfully bookmarked/unbookmarked
+                        resultLiveData.setValue(true);
                     },
                     throwable -> {
                         errorMessage.setValue("Error updating bookmark: " + throwable.getMessage());
+                        resultLiveData.setValue(false);
                     }
                 )
         );
+        
+        return resultLiveData;
+    }
+
+    /**
+     * Update bookmark status of an article (alias for toggleBookmark)
+     *
+     * @param articleId the ID of the article
+     * @param isBookmarked whether to bookmark or unbookmark the article
+     * @return LiveData emitting a boolean indicating success
+     */
+    public LiveData<Boolean> updateBookmark(Long articleId, boolean isBookmarked) {
+        return toggleBookmark(articleId, isBookmarked);
     }
 
     /**

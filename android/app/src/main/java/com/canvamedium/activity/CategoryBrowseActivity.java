@@ -111,7 +111,7 @@ public class CategoryBrowseActivity extends AppCompatActivity {
         // Toast.makeText(this, "Selected category: " + category.getName(), Toast.LENGTH_SHORT).show();
         
         // This will be implemented in the next task when we add category filtering to the article list
-        Intent intent = new Intent(this, MainActivity.class);
+        Intent intent = new Intent(this, com.canvamedium.MainActivity.class);
         intent.putExtra("CATEGORY_ID", category.getId());
         intent.putExtra("CATEGORY_NAME", category.getName());
         startActivity(intent);

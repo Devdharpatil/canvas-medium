@@ -9,11 +9,11 @@
     <string name="retry">Retry</string>
     
     <!-- Main Activity -->
-    <string name="empty_articles">No articles available</string>
+    <string name="empty_articles">No articles found</string>
     <string name="empty_templates">No templates available</string>
     <string name="error_loading_articles">Error loading articles</string>
     <string name="error_loading_templates">Error loading templates</string>
-    <string name="offline_mode">You are offline. Showing cached content.</string>
+    <string name="offline_mode">You are currently offline</string>
     <string name="no_internet_connection">No internet connection</string>
     <string name="syncing_data">Syncing data with server...</string>
     
@@ -24,6 +24,7 @@
     <string name="error_loading_article">Error loading article</string>
     <string name="share_article">Share Article</string>
     <string name="share_article_text">Check out this article: %1$s\n\n%2$s</string>
+    <string name="article_cover_image">Article cover image</string>
     
     <!-- Search and Filter -->
     <string name="action_settings">Settings</string>
@@ -31,7 +32,7 @@
     <string name="action_search">Search</string>
     <string name="action_filter">Filter</string>
     <string name="profile">Profile</string>
-    <string name="search_hint">Search articles...</string>
+    <string name="search_hint">Search articles or templates</string>
     <string name="filter_all">All</string>
     <string name="filter_published">Published</string>
     <string name="filter_drafts">Drafts</string>
@@ -50,7 +51,7 @@
     <string name="status">Status:</string>
     <string name="template">Template:</string>
     <string name="featured">Featured:</string>
-    <string name="no_search_results">No articles match your search criteria</string>
+    <string name="no_search_results">No results found</string>
     <string name="error_message">Error: %1$s</string>
     
     <!-- Login Activity -->
@@ -125,4 +126,23 @@
     <string name="error_login_failed">Login failed. Please try again.</string>
     <string name="error_network">Network error. Please check your connection.</string>
     <string name="feature_not_available">This feature is not available yet</string>
+    
+    <!-- New string resources -->
+    <string name="article_thumbnail">Article thumbnail</string>
+    <string name="bookmark_article">Bookmark article</string>
+    
+    <!-- Article status -->
+    <string name="article_status_draft">Draft</string>
+    <string name="article_status_published">Published</string>
+    <string name="article_status_archived">Archived</string>
+    
+    <!-- Search -->
+    <string name="search_description">Search CanvaMedium for articles, templates, and categories</string>
+    
+    <!-- Login and Registration -->
+    <string name="login">Login</string>
+    <string name="login_to_continue">Login to continue</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="new_user_register">New User? Register</string>
 </resources> 

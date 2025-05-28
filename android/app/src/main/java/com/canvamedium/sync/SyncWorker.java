@@ -39,10 +39,13 @@ public class SyncWorker extends Worker {
         Log.d(TAG, "Starting background sync");
 
         try {
+            // Get application context
+            Context appContext = getApplicationContext();
+            
             // Create repositories
-            ArticleRepository articleRepository = new ArticleRepository(getApplicationContext());
-            CategoryRepository categoryRepository = new CategoryRepository(getApplicationContext());
-            TagRepository tagRepository = new TagRepository(getApplicationContext());
+            ArticleRepository articleRepository = new ArticleRepository((android.app.Application) appContext);
+            CategoryRepository categoryRepository = new CategoryRepository((android.app.Application) appContext);
+            TagRepository tagRepository = new TagRepository((android.app.Application) appContext);
 
             // Sync all unsynced data
             articleRepository.syncUnsyncedArticles();
