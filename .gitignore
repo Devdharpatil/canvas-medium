@@ -1,0 +1,40 @@
+# Development process files
+.cursor/
+.vscode/
+PHASED_PLAN.md
+SETUP.md
+TASK.md
+
+# Gradle files
+.gradle/
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+output.json
+
+# Maven files
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+
+# IntelliJ IDEA files
+*.iml
+.idea/
+misc.xml
+deploymentTargetDropDown.xml
+render.experimental.xml
+
+# Android Studio files
+local.properties
+*.log
+
+# Media uploads in development
+backend/media-uploads/
+
+# Mac OS files
+.DS_Store 

@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
+    
+    <data>
+        <variable
+            name="article"
+            type="com.canvamedium.model.Article" />
+        <variable
+            name="clickListener"
+            type="android.view.View.OnClickListener" />
+    </data>
+
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="8dp"
+        android:onClick="@{clickListener}"
+        app:cardCornerRadius="8dp"
+        app:cardElevation="4dp">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <ImageView
+                android:id="@+id/image_article_thumbnail"
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                android:contentDescription="@string/article_thumbnail"
+                android:scaleType="centerCrop"
+                app:imageUrl="@{article.thumbnailUrl}"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:src="@drawable/placeholder_image" />
+
+            <TextView
+                android:id="@+id/text_article_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginEnd="16dp"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:text="@{article.title}"
+                android:textAppearance="?attr/textAppearanceHeadline6"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@id/image_article_thumbnail"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:text="Article Title" />
+
+            <TextView
+                android:id="@+id/text_article_preview"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginEnd="16dp"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:text="@{article.previewText}"
+                android:textAppearance="?attr/textAppearanceBody2"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@id/image_article_thumbnail"
+                app:layout_constraintTop_toBottomOf="@id/text_article_title"
+                tools:text="Article preview text goes here..." />
+
+            <TextView
+                android:id="@+id/text_article_author"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginBottom="16dp"
+                android:text="@{article.authorName}"
+                android:textAppearance="?attr/textAppearanceCaption"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/text_article_date"
+                app:layout_constraintStart_toEndOf="@id/image_article_thumbnail"
+                app:layout_constraintTop_toBottomOf="@id/text_article_preview"
+                tools:text="Author Name" />
+
+            <TextView
+                android:id="@+id/text_article_date"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="16dp"
+                android:layout_marginBottom="16dp"
+                android:textAppearance="?attr/textAppearanceCaption"
+                app:dateText="@{article.publishedAt}"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                tools:text="May 10, 2023" />
+
+            <ImageView
+                android:id="@+id/image_bookmark"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginEnd="8dp"
+                android:contentDescription="@string/bookmark_article"
+                app:isBookmarked="@{article.bookmarked}"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:src="@drawable/ic_bookmark_border" />
+
+            <TextView
+                android:id="@+id/text_article_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="16dp"
+                android:background="@drawable/status_background"
+                android:padding="4dp"
+                android:text="@{article.status}"
+                android:textAppearance="?attr/textAppearanceCaption"
+                android:textColor="@android:color/white"
+                android:visibility="@{article.status == null ? android.view.View.GONE : android.view.View.VISIBLE}"
+                app:layout_constraintEnd_toStartOf="@id/image_bookmark"
+                app:layout_constraintTop_toTopOf="@id/image_bookmark"
+                tools:text="PUBLISHED" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.cardview.widget.CardView> 

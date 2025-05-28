@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tags for content editor elements -->
+    <item name="element_id_tag" type="id" />
+    <item name="content_editor_tag" type="id" />
+</resources> 
