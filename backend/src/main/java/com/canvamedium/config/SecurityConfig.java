@@ -66,7 +66,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/public/**").permitAll()
                 .requestMatchers("/dev-tools/**").permitAll() // Allow access to dev tools
-                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html", "/api-docs/**").permitAll()
                 .requestMatchers("/error").permitAll()
                 .anyRequest().authenticated()
             )
