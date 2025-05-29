@@ -8,6 +8,8 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -29,6 +31,8 @@ import java.util.stream.Collectors;
  */
 @Component
 public class JwtUtils {
+    
+    private static final Logger logger = LoggerFactory.getLogger(JwtUtils.class);
     
     @Value("${app.jwt.secret:canvamediumsecretkey}")
     private String jwtSecret;
@@ -168,8 +172,24 @@ public class JwtUtils {
      * @return The signing key
      */
     private Key getSigningKey() {
-        byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
-        return Keys.hmacShaKeyFor(keyBytes);
+        try {
+            if (jwtSecret != null && jwtSecret.length() >= 32) {
+                // Use configured secret if it's at least 256 bits (32 bytes)
+                byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
+                return Keys.hmacShaKeyFor(keyBytes);
+            } else {
+                // If no secret configured or too short, log a warning and generate a secure key
+                logger.warn("JWT secret is missing or too short (less than 32 chars). " +
+                           "Generating a secure key for this session. " +
+                           "Please configure a proper 'app.jwt.secret' in application.properties");
+                
+                // Generate a secure key for HS512 algorithm
+                return Keys.secretKeyFor(SignatureAlgorithm.HS512);
+            }
+        } catch (Exception e) {
+            logger.error("Error creating JWT signing key: {}", e.getMessage());
+            throw new RuntimeException("Failed to create JWT signing key", e);
+        }
     }
     
     /**
@@ -183,15 +203,17 @@ public class JwtUtils {
             Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(token);
             return true;
         } catch (SignatureException e) {
-            System.err.println("Invalid JWT signature: " + e.getMessage());
+            logger.error("Invalid JWT signature: {}", e.getMessage());
         } catch (MalformedJwtException e) {
-            System.err.println("Invalid JWT token: " + e.getMessage());
+            logger.error("Invalid JWT token: {}", e.getMessage());
         } catch (ExpiredJwtException e) {
-            System.err.println("JWT token is expired: " + e.getMessage());
+            logger.error("JWT token is expired: {}", e.getMessage());
         } catch (UnsupportedJwtException e) {
-            System.err.println("JWT token is unsupported: " + e.getMessage());
+            logger.error("JWT token is unsupported: {}", e.getMessage());
         } catch (IllegalArgumentException e) {
-            System.err.println("JWT claims string is empty: " + e.getMessage());
+            logger.error("JWT claims string is empty: {}", e.getMessage());
+        } catch (Exception e) {
+            logger.error("JWT validation error: {}", e.getMessage());
         }
         
         return false;

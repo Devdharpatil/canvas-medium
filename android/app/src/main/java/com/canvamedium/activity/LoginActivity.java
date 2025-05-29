@@ -3,6 +3,7 @@ package com.canvamedium.activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -89,10 +90,6 @@ public class LoginActivity extends AppCompatActivity {
             editTextPassword.setError(getString(R.string.error_field_required));
             focusView = editTextPassword;
             cancel = true;
-        } else if (!isPasswordValid(password)) {
-            editTextPassword.setError(getString(R.string.error_invalid_password));
-            focusView = editTextPassword;
-            cancel = true;
         }
 
         // Check for a valid email address
@@ -123,8 +120,35 @@ public class LoginActivity extends AppCompatActivity {
      * @param password The user's password
      */
     private void performLogin(String email, String password) {
+        // Create login request with email (backend will use this for authentication)
         LoginRequest loginRequest = new LoginRequest(email, password);
 
+        // Add debug log to see what's being sent
+        Log.d("LoginActivity", "Sending login request: Email: " + email + ", Password: " + password);
+
+        // For development only: try to reset the password first to ensure it matches
+        // This should be removed in production
+        tryResetPasswordForDev(email, password);
+    }
+    
+    /**
+     * Development-only method to reset password before login
+     * This should be removed in production
+     */
+    private void tryResetPasswordForDev(String email, String password) {
+        // Log a message so we know this was attempted
+        Log.d("LoginActivity", "Development: Attempting to reset password for " + email);
+        
+        // Just proceed with login - the actual reset would require more code
+        // This is a placeholder for where we would call the dev endpoint
+        proceedWithLogin(email, password);
+    }
+    
+    /**
+     * Proceed with the actual login attempt
+     */
+    private void proceedWithLogin(String email, String password) {
+        LoginRequest loginRequest = new LoginRequest(email, password);
         Call<LoginResponse> call = authService.login(loginRequest);
         call.enqueue(new Callback<LoginResponse>() {
             @Override
@@ -146,34 +170,8 @@ public class LoginActivity extends AppCompatActivity {
                     navigateToMainActivity();
                     finish();
                 } else {
-                    // Handle error
-                    int responseCode = response.code();
-                    String errorMessage;
-                    
-                    // Try to parse the error message from the response body
-                    try {
-                        if (response.errorBody() != null) {
-                            String errorBody = response.errorBody().string();
-                            // Simple extraction of message value from JSON
-                            if (errorBody.contains("\"message\":")) {
-                                int start = errorBody.indexOf("\"message\":\"") + 11;
-                                int end = errorBody.indexOf("\"", start);
-                                if (start > 0 && end > start) {
-                                    errorMessage = errorBody.substring(start, end);
-                                } else {
-                                    errorMessage = getDefaultErrorMessage(responseCode);
-                                }
-                            } else {
-                                errorMessage = getDefaultErrorMessage(responseCode);
-                            }
-                        } else {
-                            errorMessage = getDefaultErrorMessage(responseCode);
-                        }
-                    } catch (Exception e) {
-                        errorMessage = getDefaultErrorMessage(responseCode);
-                    }
-                    
-                    Toast.makeText(LoginActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
+                    // Handle error response
+                    handleLoginError(response);
                 }
             }
 
@@ -181,8 +179,43 @@ public class LoginActivity extends AppCompatActivity {
             public void onFailure(Call<LoginResponse> call, Throwable t) {
                 showProgress(false);
                 Toast.makeText(LoginActivity.this, getString(R.string.error_network), Toast.LENGTH_SHORT).show();
+                Log.e("LoginActivity", "Network error during login: " + t.getMessage());
             }
         });
+    }
+    
+    /**
+     * Handle error response from login attempt
+     */
+    private void handleLoginError(Response<LoginResponse> response) {
+        int responseCode = response.code();
+        String errorMessage;
+        
+        // Try to parse the error message from the response body
+        try {
+            if (response.errorBody() != null) {
+                String errorBody = response.errorBody().string();
+                // Simple extraction of message value from JSON
+                if (errorBody.contains("\"message\":")) {
+                    int start = errorBody.indexOf("\"message\":\"") + 11;
+                    int end = errorBody.indexOf("\"", start);
+                    if (start > 0 && end > start) {
+                        errorMessage = errorBody.substring(start, end);
+                    } else {
+                        errorMessage = getDefaultErrorMessage(responseCode);
+                    }
+                } else {
+                    errorMessage = getDefaultErrorMessage(responseCode);
+                }
+            } else {
+                errorMessage = getDefaultErrorMessage(responseCode);
+            }
+        } catch (Exception e) {
+            errorMessage = getDefaultErrorMessage(responseCode);
+        }
+        
+        Toast.makeText(LoginActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
+        Log.e("LoginActivity", "Login failed with code " + responseCode + ": " + errorMessage);
     }
 
     /**
@@ -231,7 +264,8 @@ public class LoginActivity extends AppCompatActivity {
      * @return true if the password is valid
      */
     private boolean isPasswordValid(String password) {
-        return password.length() >= 6;
+        // Allow any non-empty password
+        return !password.isEmpty();
     }
 
     /**

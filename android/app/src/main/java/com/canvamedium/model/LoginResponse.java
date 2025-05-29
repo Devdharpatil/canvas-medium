@@ -16,14 +16,8 @@ public class LoginResponse {
     @SerializedName("expiry")
     private long expiry;
 
-    @SerializedName("userId")
-    private Long userId;
-
-    @SerializedName("username")
-    private String username;
-
-    @SerializedName("email")
-    private String email;
+    @SerializedName("user")
+    private User user;
 
     /**
      * Default constructor.
@@ -88,54 +82,94 @@ public class LoginResponse {
     /**
      * Gets the user ID.
      *
-     * @return The user ID
+     * @return The user ID or null if user is null
      */
     public Long getUserId() {
-        return userId;
-    }
-
-    /**
-     * Sets the user ID.
-     *
-     * @param userId The user ID
-     */
-    public void setUserId(Long userId) {
-        this.userId = userId;
+        return user != null ? user.getId() : null;
     }
 
     /**
      * Gets the username.
      *
-     * @return The username
+     * @return The username or null if user is null
      */
     public String getUsername() {
-        return username;
+        return user != null ? user.getUsername() : null;
     }
-
-    /**
-     * Sets the username.
-     *
-     * @param username The username
-     */
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
+    
     /**
      * Gets the email.
      *
-     * @return The email
+     * @return The email or null if user is null
      */
     public String getEmail() {
-        return email;
+        return user != null ? user.getEmail() : null;
     }
-
+    
     /**
-     * Sets the email.
+     * Gets the user object.
      *
-     * @param email The email
+     * @return The user object
      */
-    public void setEmail(String email) {
-        this.email = email;
+    public User getUser() {
+        return user;
+    }
+    
+    /**
+     * Sets the user object.
+     *
+     * @param user The user object
+     */
+    public void setUser(User user) {
+        this.user = user;
+    }
+    
+    /**
+     * Nested User class to match API response structure.
+     */
+    public static class User {
+        @SerializedName("id")
+        private Long id;
+        
+        @SerializedName("username")
+        private String username;
+        
+        @SerializedName("email")
+        private String email;
+        
+        @SerializedName("fullName")
+        private String fullName;
+        
+        public Long getId() {
+            return id;
+        }
+        
+        public void setId(Long id) {
+            this.id = id;
+        }
+        
+        public String getUsername() {
+            return username;
+        }
+        
+        public void setUsername(String username) {
+            this.username = username;
+        }
+        
+        public String getEmail() {
+            return email;
+        }
+        
+        public void setEmail(String email) {
+            this.email = email;
+        }
+        
+        public String getFullName() {
+            return fullName;
+        }
+        
+        public void setFullName(String fullName) {
+            this.fullName = fullName;
+        }
     }
 } 

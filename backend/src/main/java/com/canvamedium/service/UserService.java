@@ -136,4 +136,20 @@ public interface UserService extends UserDetailsService {
      * @return true if the email is available, false otherwise
      */
     boolean isEmailAvailable(String email);
+    
+    /**
+     * Encodes a raw password using the application's password encoder.
+     *
+     * @param rawPassword The raw password to encode
+     * @return The encoded password
+     */
+    String encodePassword(String rawPassword);
+    
+    /**
+     * Saves a user entity.
+     *
+     * @param user The user to save
+     * @return The saved user
+     */
+    User saveUser(User user);
 } 

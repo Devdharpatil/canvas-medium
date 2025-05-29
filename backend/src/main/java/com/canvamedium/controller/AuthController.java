@@ -6,6 +6,8 @@ import com.canvamedium.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,8 +19,10 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * REST controller for authentication requests.
@@ -27,6 +31,8 @@ import java.util.Map;
 @RequestMapping("/api/auth")
 @Tag(name = "Authentication", description = "Authentication API")
 public class AuthController {
+    
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
     
     private final UserService userService;
     private final JwtUtils jwtUtils;
@@ -48,21 +54,30 @@ public class AuthController {
     
     /**
      * Authenticate a user and generate JWT token.
+     * The username field in the request can be either the actual username or the user's email address.
      *
-     * @param loginRequest The login request
+     * @param loginRequest The login request containing username/email and password
      * @return The response entity with authentication token and user details
      */
     @PostMapping("/login")
-    @Operation(summary = "Authenticate user", description = "Authenticate user and generate JWT token")
+    @Operation(summary = "Authenticate user", description = "Authenticate user with username/email and password, then generate JWT token")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
         try {
+            logger.debug("Login attempt for username/email: {}", loginRequest.getUsername());
+            
             Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword())
             );
             
+            logger.debug("Authentication successful for: {}", loginRequest.getUsername());
+            
             SecurityContextHolder.getContext().setAuthentication(authentication);
             String jwt = jwtUtils.generateJwtToken(authentication);
             String refreshToken = jwtUtils.generateRefreshToken(loginRequest.getUsername());
+            
+            // Get token expiry time in milliseconds
+            Date expiryDate = jwtUtils.getExpirationDateFromToken(jwt);
+            long expiryTimeMs = expiryDate.getTime();
             
             // Record login
             userService.recordLogin(loginRequest.getUsername());
@@ -70,9 +85,16 @@ public class AuthController {
             Map<String, Object> response = new HashMap<>();
             response.put("token", jwt);
             response.put("refreshToken", refreshToken);
+            response.put("expiry", expiryTimeMs);
             
-            // Add user details to response
-            userService.findByUsername(loginRequest.getUsername()).ifPresent(user -> {
+            // Add user details to response - try to find by email first, then by username
+            Optional<User> userOptional = userService.findByEmail(loginRequest.getUsername());
+            
+            if (userOptional.isEmpty()) {
+                userOptional = userService.findByUsername(loginRequest.getUsername());
+            }
+            
+            userOptional.ifPresent(user -> {
                 Map<String, Object> userDetails = new HashMap<>();
                 userDetails.put("id", user.getId());
                 userDetails.put("username", user.getUsername());
@@ -84,6 +106,8 @@ public class AuthController {
             
             return ResponseEntity.ok(response);
         } catch (Exception e) {
+            logger.error("Authentication failed for username/email: {}, reason: {}", 
+                    loginRequest.getUsername(), e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(Map.of("message", "Invalid username or password"));
         }
@@ -158,9 +182,14 @@ public class AuthController {
             String newToken = jwtUtils.generateJwtToken(username, userDetails.getAuthorities());
             String newRefreshToken = jwtUtils.generateRefreshToken(username);
             
+            // Get token expiry time in milliseconds
+            Date expiryDate = jwtUtils.getExpirationDateFromToken(newToken);
+            long expiryTimeMs = expiryDate.getTime();
+            
             Map<String, Object> response = new HashMap<>();
             response.put("token", newToken);
             response.put("refreshToken", newRefreshToken);
+            response.put("expiry", expiryTimeMs);
             
             return ResponseEntity.ok(response);
         } catch (UsernameNotFoundException e) {
@@ -195,6 +224,41 @@ public class AuthController {
     }
     
     /**
+     * TEMPORARY DEVELOPMENT ENDPOINT: Reset a user's password by email.
+     * This endpoint should be removed in production.
+     *
+     * @param email The email of the user
+     * @param password The new password to set
+     * @return The response entity indicating success or failure
+     */
+    @PostMapping("/dev-reset-password")
+    @Operation(summary = "Reset password (DEV ONLY)", description = "Development-only endpoint to reset a user's password")
+    public ResponseEntity<?> devResetPassword(@RequestParam String email, @RequestParam String password) {
+        try {
+            Optional<User> userOptional = userService.findByEmail(email);
+            if (userOptional.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", "User not found with email: " + email));
+            }
+            
+            User user = userOptional.get();
+            String encodedPassword = userService.encodePassword(password);
+            user.setPassword(encodedPassword);
+            user.setUpdatedAt(java.time.LocalDateTime.now());
+            userService.saveUser(user);
+            
+            return ResponseEntity.ok(Map.of(
+                "message", "Password reset successfully",
+                "username", user.getUsername(),
+                "email", user.getEmail()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("message", "Error resetting password: " + e.getMessage()));
+        }
+    }
+    
+    /**
      * DTO for login requests.
      */
     public static class LoginRequest {
@@ -203,18 +267,38 @@ public class AuthController {
         
         // Getters and setters
         
+        /**
+         * Get the username or email.
+         * 
+         * @return The username or email used for authentication
+         */
         public String getUsername() {
             return username;
         }
         
+        /**
+         * Set the username or email.
+         * 
+         * @param username The username or email for authentication
+         */
         public void setUsername(String username) {
             this.username = username;
         }
         
+        /**
+         * Get the password.
+         * 
+         * @return The password for authentication
+         */
         public String getPassword() {
             return password;
         }
         
+        /**
+         * Set the password.
+         * 
+         * @param password The password for authentication
+         */
         public void setPassword(String password) {
             this.password = password;
         }

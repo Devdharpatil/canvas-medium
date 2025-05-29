@@ -163,17 +163,30 @@ public class AuthManager {
      * @return The JWT token, or null if not found
      */
     public String getToken() {
+        String token = getRawToken();
+        if (token == null) {
+            return null;
+        }
+        
+        long expiryTime = getTokenExpiryTime();
+        if (expiryTime <= 0) {
+            return token; // Can't determine expiration, return token as is
+        }
+        
+        long currentTime = System.currentTimeMillis();
+        long timeUntilExpiry = expiryTime - currentTime;
+        
         // Check if token is expired or close to expiry
-        if (isTokenExpired() || isTokenNearExpiry()) {
+        if (currentTime >= expiryTime || timeUntilExpiry <= TOKEN_REFRESH_BUFFER_MS) {
             // Try to refresh the token
             if (!refreshTokenInBackground()) {
                 // If refresh can't be initiated, return the current token
                 // This could still be valid for a short time even if it's near expiry
-                return sharedPreferences.getString(KEY_TOKEN, null);
+                return token;
             }
         }
         
-        return sharedPreferences.getString(KEY_TOKEN, null);
+        return token;
     }
     
     /**
@@ -211,25 +224,10 @@ public class AuthManager {
     public boolean isTokenExpired() {
         long expiryTime = getTokenExpiryTime();
         if (expiryTime <= 0) {
-            return getToken() == null;
+            return getRawToken() == null;
         }
         
         return System.currentTimeMillis() >= expiryTime;
-    }
-    
-    /**
-     * Check if the token is near expiry.
-     * 
-     * @return true if the token is near expiry, false otherwise
-     */
-    private boolean isTokenNearExpiry() {
-        long expiryTime = getTokenExpiryTime();
-        if (expiryTime <= 0) {
-            return false;
-        }
-        
-        long timeUntilExpiry = expiryTime - System.currentTimeMillis();
-        return timeUntilExpiry <= TOKEN_REFRESH_BUFFER_MS;
     }
     
     /**
@@ -363,6 +361,10 @@ public class AuthManager {
      * @param userId The user ID
      */
     public void saveUserId(Long userId) {
+        if (userId == null) {
+            Log.w(TAG, "Attempted to save null userId, ignoring request");
+            return;
+        }
         sharedPreferences.edit().putLong(KEY_USER_ID, userId).apply();
     }
 
@@ -423,6 +425,15 @@ public class AuthManager {
      */
     public boolean isLoggedIn() {
         String token = getRawToken();
-        return token != null && !isTokenExpired();
+        if (token == null) {
+            return false;
+        }
+        
+        long expiryTime = getTokenExpiryTime();
+        if (expiryTime <= 0) {
+            return false;
+        }
+        
+        return System.currentTimeMillis() < expiryTime;
     }
 } 

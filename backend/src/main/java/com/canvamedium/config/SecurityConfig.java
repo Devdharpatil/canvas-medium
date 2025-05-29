@@ -58,33 +58,20 @@ public class SecurityConfig {
      * @throws Exception if an error occurs during configuration
      */
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                // Public endpoints
+            .authorizeHttpRequests(authorize -> authorize
                 .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/v3/api-docs/**").permitAll()
-                
-                // Public GET endpoints for articles and templates
-                .requestMatchers(HttpMethod.GET, "/api/articles/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/templates/**").permitAll()
-                
-                // Protected endpoints
-                .requestMatchers(HttpMethod.POST, "/api/articles/**").authenticated()
-                .requestMatchers(HttpMethod.PUT, "/api/articles/**").authenticated()
-                .requestMatchers(HttpMethod.DELETE, "/api/articles/**").authenticated()
-                .requestMatchers(HttpMethod.POST, "/api/templates/**").authenticated()
-                .requestMatchers(HttpMethod.PUT, "/api/templates/**").authenticated()
-                .requestMatchers(HttpMethod.DELETE, "/api/templates/**").authenticated()
-                
-                // Admin endpoints
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                
-                // All other requests need authentication
+                .requestMatchers("/api/public/**").permitAll()
+                .requestMatchers("/dev-tools/**").permitAll() // Allow access to dev tools
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                .requestMatchers("/error").permitAll()
                 .anyRequest().authenticated()
+            )
+            .sessionManagement(session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
             .addFilterBefore(jwtAuthorizationFilter, UsernamePasswordAuthenticationFilter.class);
         

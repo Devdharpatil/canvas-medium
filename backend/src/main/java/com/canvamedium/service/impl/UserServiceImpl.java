@@ -5,6 +5,8 @@ import com.canvamedium.model.User.Role;
 import com.canvamedium.repository.UserRepository;
 import com.canvamedium.service.UserService;
 import jakarta.persistence.EntityNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -26,6 +28,8 @@ import java.util.stream.Collectors;
 @Service
 public class UserServiceImpl implements UserService {
     
+    private static final Logger logger = LoggerFactory.getLogger(UserServiceImpl.class);
+    
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     
@@ -42,9 +46,26 @@ public class UserServiceImpl implements UserService {
     }
     
     @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
+    public UserDetails loadUserByUsername(String usernameOrEmail) throws UsernameNotFoundException {
+        User user;
+        
+        // Try to find by email first
+        Optional<User> userOptional = userRepository.findByEmail(usernameOrEmail);
+        
+        // If not found by email, try by username
+        if (userOptional.isEmpty()) {
+            logger.debug("User not found by email '{}', trying username", usernameOrEmail);
+            userOptional = userRepository.findByUsername(usernameOrEmail);
+        }
+        
+        // If still not found, throw exception
+        if (userOptional.isEmpty()) {
+            logger.warn("User not found with email or username: {}", usernameOrEmail);
+            throw new UsernameNotFoundException("User not found with email or username: " + usernameOrEmail);
+        }
+        
+        user = userOptional.get();
+        logger.debug("User found: username={}, email={}", user.getUsername(), user.getEmail());
         
         List<SimpleGrantedAuthority> authorities = user.getRoles().stream()
                 .map(role -> new SimpleGrantedAuthority(role.name()))
@@ -207,10 +228,19 @@ public class UserServiceImpl implements UserService {
     
     @Override
     @Transactional
-    public void recordLogin(String username) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
+    public void recordLogin(String usernameOrEmail) {
+        // Try to find the user by email first, then by username if not found
+        Optional<User> userOptional = userRepository.findByEmail(usernameOrEmail);
         
+        if (userOptional.isEmpty()) {
+            userOptional = userRepository.findByUsername(usernameOrEmail);
+        }
+        
+        if (userOptional.isEmpty()) {
+            throw new UsernameNotFoundException("User not found with email or username: " + usernameOrEmail);
+        }
+        
+        User user = userOptional.get();
         user.updateLastLogin();
         userRepository.save(user);
     }
@@ -223,5 +253,15 @@ public class UserServiceImpl implements UserService {
     @Override
     public boolean isEmailAvailable(String email) {
         return !userRepository.existsByEmail(email);
+    }
+    
+    @Override
+    public String encodePassword(String rawPassword) {
+        return passwordEncoder.encode(rawPassword);
+    }
+    
+    @Override
+    public User saveUser(User user) {
+        return userRepository.save(user);
     }
 } 
