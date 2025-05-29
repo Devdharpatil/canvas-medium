@@ -188,95 +188,73 @@ public class RegisterActivity extends AppCompatActivity {
                     navigateToMainActivity();
                     finish();
                 } else {
-                    // Handle error based on HTTP status code
+                    // Handle error
+                    int responseCode = response.code();
                     String errorMessage;
                     
-                    switch (response.code()) {
-                        case 409:
-                            // Conflict - username or email already exists
-                            try {
-                                String responseBody = response.errorBody().string();
-                                if (responseBody.contains("Username")) {
-                                    errorMessage = getString(R.string.error_username_taken);
-                                    editTextUsername.setError(errorMessage);
-                                    editTextUsername.requestFocus();
-                                } else if (responseBody.contains("Email")) {
-                                    errorMessage = getString(R.string.error_email_taken);
-                                    editTextEmail.setError(errorMessage);
-                                    editTextEmail.requestFocus();
+                    // Try to parse the error message from the response body
+                    try {
+                        if (response.errorBody() != null) {
+                            String errorBody = response.errorBody().string();
+                            // Simple extraction of message value from JSON
+                            if (errorBody.contains("\"message\":")) {
+                                int start = errorBody.indexOf("\"message\":\"") + 11;
+                                int end = errorBody.indexOf("\"", start);
+                                if (start > 0 && end > start) {
+                                    String serverMessage = errorBody.substring(start, end);
+                                    
+                                    // Handle specific field errors
+                                    if (serverMessage.contains("Username is already taken")) {
+                                        editTextUsername.setError(getString(R.string.error_username_taken));
+                                        editTextUsername.requestFocus();
+                                    } else if (serverMessage.contains("Email is already in use")) {
+                                        editTextEmail.setError(getString(R.string.error_email_taken));
+                                        editTextEmail.requestFocus();
+                                    }
+                                    
+                                    errorMessage = serverMessage;
                                 } else {
-                                    errorMessage = getString(R.string.error_username_email_taken);
+                                    errorMessage = getDefaultErrorMessage(responseCode);
                                 }
-                            } catch (Exception e) {
-                                errorMessage = getString(R.string.error_username_email_taken);
+                            } else {
+                                errorMessage = getDefaultErrorMessage(responseCode);
                             }
-                            break;
-                            
-                        case 400:
-                            // Bad request - validation errors
-                            errorMessage = getString(R.string.error_invalid_registration_data);
-                            break;
-                            
-                        case 500:
-                        case 502:
-                        case 503:
-                        case 504:
-                            // Server errors
-                            errorMessage = getString(R.string.error_server);
-                            break;
-                            
-                        default:
-                            errorMessage = getString(R.string.error_registration_failed);
-                            break;
+                        } else {
+                            errorMessage = getDefaultErrorMessage(responseCode);
+                        }
+                    } catch (Exception e) {
+                        errorMessage = getDefaultErrorMessage(responseCode);
                     }
                     
-                    showErrorMessage(errorMessage);
+                    Toast.makeText(RegisterActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            /**
+             * Returns a default error message based on response code.
+             *
+             * @param responseCode The HTTP response code
+             * @return An appropriate error message
+             */
+            private String getDefaultErrorMessage(int responseCode) {
+                switch (responseCode) {
+                    case 409:
+                        return getString(R.string.error_username_email_taken);
+                    case 400:
+                        return getString(R.string.error_invalid_registration_data);
+                    case 500:
+                        return getString(R.string.error_server);
+                    default:
+                        return getString(R.string.error_registration_failed);
                 }
             }
 
             @Override
             public void onFailure(Call<LoginResponse> call, Throwable t) {
                 showProgress(false);
-                
-                // Determine the type of failure
-                String errorMessage;
-                if (!isNetworkAvailable()) {
-                    errorMessage = getString(R.string.error_no_internet);
-                } else if (t.getMessage() != null && t.getMessage().contains("timeout")) {
-                    errorMessage = getString(R.string.error_timeout);
-                } else {
-                    errorMessage = getString(R.string.error_network);
-                }
-                
-                showErrorMessage(errorMessage);
+                Toast.makeText(RegisterActivity.this, getString(R.string.error_network), Toast.LENGTH_SHORT).show();
             }
         });
-    }
-
-    /**
-     * Displays an error message to the user.
-     *
-     * @param message The error message to display
-     */
-    private void showErrorMessage(String message) {
-        // Display a toast message
-        Toast.makeText(this, message, Toast.LENGTH_LONG).show();
-        
-        // You could also update a TextView to show the error more prominently
-        // textViewError.setText(message);
-        // textViewError.setVisibility(View.VISIBLE);
-    }
-    
-    /**
-     * Checks if the device has an active network connection.
-     *
-     * @return true if a network connection is available
-     */
-    private boolean isNetworkAvailable() {
-        android.net.ConnectivityManager connectivityManager = (android.net.ConnectivityManager) 
-                getSystemService(CONNECTIVITY_SERVICE);
-        android.net.NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
-        return activeNetworkInfo != null && activeNetworkInfo.isConnected();
     }
 
     /**

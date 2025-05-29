@@ -117,9 +117,9 @@ public interface UserService extends UserDetailsService {
     /**
      * Records a user login.
      *
-     * @param usernameOrEmail The username or email of the user who logged in
+     * @param username The username of the user who logged in
      */
-    void recordLogin(String usernameOrEmail);
+    void recordLogin(String username);
     
     /**
      * Checks if a username is available (not already taken).

@@ -120,19 +120,16 @@
     <string name="error_invalid_username">Username must be at least 3 characters and contain only letters, numbers, and underscore</string>
     <string name="error_passwords_do_not_match">Passwords do not match</string>
     <string name="error_username_email_taken">Username or email is already taken</string>
-    <string name="error_username_taken">This username is already taken</string>
-    <string name="error_email_taken">This email is already in use</string>
     <string name="error_invalid_registration_data">Invalid registration data</string>
     <string name="error_registration_failed">Registration failed. Please try again.</string>
-    <string name="error_invalid_credentials">Invalid username or password</string>
-    <string name="error_user_not_found">User not found. Please check your credentials.</string>
-    <string name="error_invalid_login_data">Invalid login data. Please check your input.</string>
+    <string name="error_invalid_credentials">Invalid email or password</string>
     <string name="error_login_failed">Login failed. Please try again.</string>
     <string name="error_network">Network error. Please check your connection.</string>
-    <string name="error_no_internet">No internet connection. Please connect to a network and try again.</string>
-    <string name="error_timeout">Request timed out. Please try again.</string>
-    <string name="error_server">Server error. Please try again later.</string>
     <string name="feature_not_available">This feature is not available yet</string>
+    <string name="error_username_taken">Username is already taken</string>
+    <string name="error_email_taken">Email is already in use</string>
+    <string name="error_server">Server error. Please try again later.</string>
+    <string name="error_invalid_login_data">Invalid login data</string>
     
     <!-- New string resources -->
     <string name="article_thumbnail">Article thumbnail</string>
