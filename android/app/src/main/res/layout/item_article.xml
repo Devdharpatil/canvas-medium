@@ -12,82 +12,156 @@
             type="android.view.View.OnClickListener" />
     </data>
 
-    <androidx.cardview.widget.CardView
+    <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="8dp"
+        android:layout_marginHorizontal="12dp"
+        android:layout_marginVertical="8dp"
         android:onClick="@{clickListener}"
-        app:cardCornerRadius="8dp"
-        app:cardElevation="4dp">
+        app:cardCornerRadius="16dp"
+        app:cardElevation="3dp"
+        app:strokeColor="#E0E0E0"
+        app:strokeWidth="0.5dp">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="16dp">
+            android:layout_height="wrap_content">
 
             <ImageView
                 android:id="@+id/imageThumbnail"
-                android:layout_width="80dp"
-                android:layout_height="80dp"
+                android:layout_width="0dp"
+                android:layout_height="160dp"
                 android:scaleType="centerCrop"
                 app:imageUrl="@{article.thumbnailUrl}"
+                app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 tools:src="@drawable/ic_placeholder" />
 
-            <TextView
-                android:id="@+id/textTitle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
+            <View
+                android:id="@+id/categoryBadgeBackground"
+                android:layout_width="wrap_content"
+                android:layout_height="28dp"
                 android:layout_marginStart="16dp"
-                android:ellipsize="end"
-                android:maxLines="2"
-                android:text="@{article.title}"
-                android:textColor="@color/colorPrimaryDark"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                app:layout_constraintEnd_toStartOf="@+id/imageBookmark"
-                app:layout_constraintStart_toEndOf="@+id/imageThumbnail"
-                app:layout_constraintTop_toTopOf="parent"
-                tools:text="Article Title" />
+                android:layout_marginTop="16dp"
+                android:minWidth="80dp"
+                android:background="@drawable/category_badge_background"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"/>
 
             <TextView
-                android:id="@+id/textPreview"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:layout_marginTop="4dp"
-                android:ellipsize="end"
-                android:maxLines="2"
-                android:text="@{article.previewText}"
-                android:textSize="14sp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toEndOf="@+id/imageThumbnail"
-                app:layout_constraintTop_toBottomOf="@+id/textTitle"
-                tools:text="This is a preview of the article content..." />
-
-            <TextView
-                android:id="@+id/textDate"
+                android:id="@+id/textCategory"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:layout_marginTop="8dp"
-                android:text="@{article.formattedDate}"
-                android:textColor="@color/colorAccent"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:paddingHorizontal="12dp"
+                android:text="@{article.category.name}"
+                android:textAllCaps="true"
+                android:textColor="#FFFFFF"
                 android:textSize="12sp"
-                app:layout_constraintStart_toEndOf="@+id/imageThumbnail"
-                app:layout_constraintTop_toBottomOf="@+id/textPreview"
-                tools:text="May 1, 2023" />
+                android:textStyle="bold"
+                app:layout_constraintBottom_toBottomOf="@id/categoryBadgeBackground"
+                app:layout_constraintEnd_toEndOf="@id/categoryBadgeBackground"
+                app:layout_constraintStart_toStartOf="@id/categoryBadgeBackground"
+                app:layout_constraintTop_toTopOf="@id/categoryBadgeBackground"
+                tools:text="TECHNOLOGY" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/imageThumbnail">
+
+                <TextView
+                    android:id="@+id/textTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="2"
+                    android:text="@{article.title}"
+                    android:textColor="#212121"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:fontFamily="sans-serif-medium"
+                    tools:text="The Future of AI Development in 2024" />
+
+                <TextView
+                    android:id="@+id/textPreview"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:ellipsize="end"
+                    android:maxLines="2"
+                    android:text="@{article.previewText}"
+                    android:textColor="#757575"
+                    android:textSize="14sp"
+                    android:fontFamily="sans-serif"
+                    tools:text="A deep dive into upcoming AI trends that will shape technology in 2024 and beyond. Learn about the latest advancements." />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="0.5dp"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="12dp"
+                    android:background="#E0E0E0" />
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <TextView
+                        android:id="@+id/textDate"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@{article.formattedDate}"
+                        android:textColor="#9E9E9E"
+                        android:textSize="12sp"
+                        android:drawableStart="@drawable/ic_calendar"
+                        android:drawablePadding="4dp"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        tools:text="May 1, 2023" />
+
+                    <ImageView
+                        android:id="@+id/imageBookmark"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_marginEnd="8dp"
+                        android:contentDescription="@string/bookmark_article"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toStartOf="@+id/imageShare"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:isBookmarked="@{article.bookmarked}"
+                        tools:src="@drawable/ic_bookmark_border" />
+
+                    <ImageView
+                        android:id="@+id/imageShare"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:contentDescription="Share article"
+                        android:src="@drawable/ic_share"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintTop_toTopOf="parent" />
+                </androidx.constraintlayout.widget.ConstraintLayout>
+            </LinearLayout>
 
             <ImageView
-                android:id="@+id/imageBookmark"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:contentDescription="@string/bookmark_article"
+                android:id="@+id/featuredBadge"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_margin="8dp"
+                android:src="@drawable/ic_featured"
+                android:visibility="@{article.featured ? android.view.View.VISIBLE : android.view.View.GONE}"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                app:isBookmarked="@{article.bookmarked}" />
+                tools:visibility="visible" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
-    </androidx.cardview.widget.CardView>
+    </com.google.android.material.card.MaterialCardView>
 </layout> 

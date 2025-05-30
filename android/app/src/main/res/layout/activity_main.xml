@@ -1,88 +1,193 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout 
+<androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".MainActivity">
+    android:background="#F5F5F5"
+    tools:context=".activity.MainActivity">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@android:color/white">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:layout_scrollFlags="scroll|enterAlways|snap">
+
+            <TextView
+                android:id="@+id/textAppName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:text="@string/app_name"
+                android:textColor="@color/colorPrimary"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <androidx.appcompat.widget.SearchView
+                android:id="@+id/searchView"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginEnd="8dp"
+                android:background="@android:color/transparent"
+                app:iconifiedByDefault="true"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@+id/menuButton"
+                app:layout_constraintTop_toTopOf="parent"
+                app:queryHint="Search articles..."
+                app:searchIcon="@drawable/ic_search" />
+
+            <ImageButton
+                android:id="@+id/menuButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginEnd="8dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Menu"
+                android:padding="8dp"
+                android:src="@drawable/ic_menu"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/tabLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@android:color/white"
+            app:tabGravity="start"
+            app:tabIndicatorColor="@color/colorPrimary"
+            app:tabIndicatorHeight="3dp"
+            app:tabMode="scrollable"
+            app:tabSelectedTextColor="@color/colorPrimary"
+            app:tabTextColor="#757575" />
+    </com.google.android.material.appbar.AppBarLayout>
 
     <!-- Offline Indicator Banner -->
     <TextView
         android:id="@+id/offlineIndicator"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/colorAccent"
+        android:background="#FF9800"
         android:gravity="center"
         android:padding="8dp"
         android:text="@string/offline_mode"
-        android:textColor="@color/white"
+        android:textColor="@android:color/white"
         android:visibility="gone"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior"
         tools:visibility="visible" />
 
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         android:id="@+id/swipeRefreshLayout"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/offlineIndicator">
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerView"
             android:layout_width="match_parent"
-            android:layout_height="match_parent" />
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingTop="8dp"
+            android:paddingBottom="80dp" />
 
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
     <!-- Empty State View -->
-    <TextView
-        android:id="@+id/textEmpty"
-        android:layout_width="0dp"
+    <LinearLayout
+        android:id="@+id/emptyView"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_gravity="center"
         android:gravity="center"
-        android:padding="16dp"
-        android:text="@string/empty_articles"
-        android:textSize="16sp"
+        android:orientation="vertical"
+        android:padding="32dp"
         android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        tools:visibility="visible">
+
+        <ImageView
+            android:layout_width="150dp"
+            android:layout_height="150dp"
+            android:contentDescription="Empty state illustration"
+            android:src="@drawable/ic_empty_state" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:gravity="center"
+            android:text="No articles yet"
+            android:textColor="#424242"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:layout_marginHorizontal="16dp"
+            android:gravity="center"
+            android:text="Create your first article or generate demo content to see how your feed will look"
+            android:textColor="#757575"
+            android:textSize="16sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonCreateDemo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:paddingHorizontal="24dp"
+            android:paddingVertical="12dp"
+            android:text="Generate Demo Content"
+            app:cornerRadius="24dp" />
+    </LinearLayout>
 
     <!-- Error View -->
     <LinearLayout
         android:id="@+id/errorView"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_gravity="center"
         android:gravity="center"
         android:orientation="vertical"
-        android:padding="16dp"
+        android:padding="32dp"
         android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <ImageView
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:contentDescription="Error illustration"
+            android:src="@drawable/ic_error" />
 
         <TextView
             android:id="@+id/textError"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
             android:gravity="center"
             android:textColor="#B71C1C"
             android:textSize="16sp"
             tools:text="Error loading articles" />
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/buttonRetry"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/retry" />
+            android:layout_marginTop="16dp"
+            android:text="@string/retry"
+            app:cornerRadius="24dp" />
     </LinearLayout>
 
     <!-- Loading View -->
@@ -90,36 +195,39 @@
         android:id="@+id/loadingView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_gravity="center"
         android:gravity="center"
         android:orientation="vertical"
-        android:padding="16dp"
+        android:padding="24dp"
+        android:background="@drawable/loading_background"
         android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <ProgressBar
             android:layout_width="48dp"
             android:layout_height="48dp"
+            android:indeterminateTint="@color/colorPrimary"
             android:indeterminate="true" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="12dp"
             android:text="@string/loading"
             android:textSize="14sp" />
     </LinearLayout>
 
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
+    <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
         android:id="@+id/fabAdd"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
-        android:contentDescription="Add new item"
-        android:src="@android:drawable/ic_input_add"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        android:contentDescription="Create new article"
+        android:text="Create"
+        android:textColor="@android:color/white"
+        app:icon="@drawable/ic_add"
+        app:iconTint="@android:color/white"
+        app:backgroundTint="@color/colorPrimary" />
 
-</androidx.constraintlayout.widget.ConstraintLayout> 
+</androidx.coordinatorlayout.widget.CoordinatorLayout> 

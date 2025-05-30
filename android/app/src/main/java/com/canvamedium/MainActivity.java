@@ -2,6 +2,7 @@ package com.canvamedium;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -174,7 +175,7 @@ public class MainActivity extends AppCompatActivity implements ArticleAdapter.Ar
         recyclerView = findViewById(R.id.recyclerView);
         fabAdd = findViewById(R.id.fabAdd);
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
-        emptyView = findViewById(R.id.textEmpty);
+        emptyView = findViewById(R.id.emptyView);
         errorView = findViewById(R.id.errorView);
         errorText = findViewById(R.id.textError);
         loadingView = findViewById(R.id.loadingView);
@@ -269,7 +270,7 @@ public class MainActivity extends AppCompatActivity implements ArticleAdapter.Ar
         article.setContent(contentJson);
         article.setPreviewText(entity.getPreviewText());
         article.setThumbnailUrl(entity.getThumbnailUrl());
-        article.setTemplateId(entity.getTemplateId());
+        article.setTemplateId(entity.getTemplateId() != null ? entity.getTemplateId() : -1L);
         article.setStatus(entity.getStatus());
         
         // Convert dates from Date to String format
@@ -342,6 +343,162 @@ public class MainActivity extends AppCompatActivity implements ArticleAdapter.Ar
         recyclerView.setVisibility(View.GONE);
         emptyView.setVisibility(View.VISIBLE);
         errorView.setVisibility(View.GONE);
+        
+        // Set up demo content button if in empty view
+        View buttonCreateDemo = findViewById(R.id.buttonCreateDemo);
+        if (buttonCreateDemo != null) {
+            buttonCreateDemo.setOnClickListener(v -> generateDemoData());
+        }
+    }
+    
+    /**
+     * Generates demo data for the app.
+     */
+    private void generateDemoData() {
+        showLoading(true);
+        
+        // Show a message to the user
+        Toast.makeText(this, "Generating demo content...", Toast.LENGTH_SHORT).show();
+        
+        // Track that we're generating demo data
+        articleViewModel.setGeneratingDemo(true);
+        
+        com.canvamedium.util.DemoDataGenerator.createSampleArticles(
+                this,
+                new com.canvamedium.util.DemoDataGenerator.DemoDataCallback() {
+                    @Override
+                    public void onComplete(List<Article> articles) {
+                        runOnUiThread(() -> {
+                            showLoading(false);
+                            articleViewModel.setGeneratingDemo(false);
+                            
+                            if (articles != null && !articles.isEmpty()) {
+                                // Show the articles in the adapter
+                                articleAdapter.submitList(articles);
+                                showContent();
+                                
+                                // Show success message
+                                Toast.makeText(MainActivity.this, 
+                                        "Demo content created successfully!", Toast.LENGTH_SHORT).show();
+                                
+                                // Save articles to database
+                                saveArticlesToDatabase(articles);
+                            } else {
+                                showEmptyView();
+                                Snackbar.make(recyclerView, "No demo articles were created", 
+                                        Snackbar.LENGTH_LONG).show();
+                            }
+                        });
+                    }
+                    
+                    @Override
+                    public void onError(String errorMessage) {
+                        runOnUiThread(() -> {
+                            showLoading(false);
+                            articleViewModel.setGeneratingDemo(false);
+                            
+                            // Check if it's an auth error (403)
+                            if (errorMessage.contains("403") || errorMessage.contains("Forbidden")) {
+                                Snackbar.make(recyclerView, 
+                                        "Access denied. Creating local articles instead...", 
+                                        Snackbar.LENGTH_LONG).show();
+                                
+                                // Retry with local generation only
+                                com.canvamedium.util.DemoDataGenerator.createSampleArticlesLocally(
+                                        MainActivity.this, this);
+                            } else {
+                                showError("Error generating demo content: " + errorMessage);
+                                
+                                Snackbar.make(recyclerView, errorMessage, Snackbar.LENGTH_LONG)
+                                        .setAction("RETRY", v -> generateDemoData())
+                                        .show();
+                            }
+                        });
+                    }
+                }
+        );
+    }
+    
+    /**
+     * Save generated articles to the local database.
+     */
+    private void saveArticlesToDatabase(List<Article> articles) {
+        // For each article, create an ArticleEntity and save to Room database
+        // This is done on a background thread
+        new Thread(() -> {
+            for (Article article : articles) {
+                try {
+                    // Convert to entity
+                    ArticleEntity entity = convertArticleToEntity(article);
+                    
+                    // Save to database using ViewModel
+                    articleViewModel.insertArticle(entity);
+                } catch (Exception e) {
+                    Log.e("MainActivity", "Error saving article to database: " + e.getMessage(), e);
+                }
+            }
+        }).start();
+    }
+    
+    /**
+     * Convert an Article model to ArticleEntity for database storage.
+     */
+    private ArticleEntity convertArticleToEntity(Article article) {
+        String contentString = article.getContent() != null ? 
+                article.getContent().toString() : "{}";
+        
+        // Parse dates
+        Date createdAt = null;
+        Date updatedAt = null;
+        Date publishedAt = null;
+        
+        try {
+            if (article.getCreatedAt() != null && !article.getCreatedAt().isEmpty()) {
+                createdAt = DATE_FORMAT.parse(article.getCreatedAt());
+            }
+            if (article.getUpdatedAt() != null && !article.getUpdatedAt().isEmpty()) {
+                updatedAt = DATE_FORMAT.parse(article.getUpdatedAt());
+            }
+            if (article.getPublishedAt() != null && !article.getPublishedAt().isEmpty()) {
+                publishedAt = DATE_FORMAT.parse(article.getPublishedAt());
+            }
+        } catch (Exception e) {
+            Log.e("MainActivity", "Error parsing dates: " + e.getMessage(), e);
+        }
+        
+        // Default to current time if parsing fails
+        if (createdAt == null) createdAt = new Date();
+        if (updatedAt == null) updatedAt = new Date();
+        
+        // Extract tags
+        List<String> tagStrings = new ArrayList<>();
+        if (article.getTags() != null) {
+            for (com.canvamedium.model.Tag tag : article.getTags()) {
+                if (tag != null && tag.getName() != null) {
+                    tagStrings.add(tag.getName());
+                }
+            }
+        }
+        
+        // Create entity with all the necessary fields
+        return new ArticleEntity(
+                article.getId(),
+                article.getTitle(),
+                article.getPreviewText(),
+                contentString,
+                article.getThumbnailUrl(),
+                article.getAuthor() != null ? article.getAuthor().getId() : null,
+                article.getAuthor() != null ? article.getAuthor().getName() : article.getAuthorName(),
+                createdAt,
+                updatedAt,
+                publishedAt,
+                article.getStatus(),
+                article.getTemplateId(),
+                article.getCategory() != null ? article.getCategory().getId() : null,
+                article.getCategory() != null ? article.getCategory().getName() : null,
+                tagStrings,
+                article.isBookmarked()
+        );
     }
     
     /**

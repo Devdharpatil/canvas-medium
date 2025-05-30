@@ -6,8 +6,9 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     
-    <!-- Camera and storage permissions -->
+    <!-- Camera and storage permissions - marked as not required -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
@@ -49,13 +50,15 @@
             android:name=".activity.TemplateListActivity"
             android:exported="false"
             android:parentActivityName=".activity.MainActivity"
-            android:label="Templates" />
+            android:label="Templates"
+            android:theme="@style/Theme.CanvaMedium.NoActionBar" />
         <activity
             android:name=".activity.TemplateBuilderActivity"
             android:exported="false"
             android:parentActivityName=".activity.TemplateListActivity"
             android:label="Template Builder"
-            android:theme="@style/Theme.CanvaMedium.NoActionBar" />
+            android:theme="@style/Theme.CanvaMedium.NoActionBar"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".activity.ArticleEditorActivity"
             android:exported="false"

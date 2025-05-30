@@ -73,6 +73,14 @@ public interface ArticleDao {
      */
     @Query("SELECT * FROM articles ORDER BY created_at DESC")
     LiveData<List<ArticleEntity>> getAllArticles();
+    
+    /**
+     * Get all articles in the database as a Single list, ordered by creation date (newest first)
+     *
+     * @return a Single that emits the list of all articles
+     */
+    @Query("SELECT * FROM articles ORDER BY created_at DESC")
+    Single<List<ArticleEntity>> getAllArticlesAsList();
 
     /**
      * Get all bookmarked articles, ordered by creation date (newest first)
@@ -125,4 +133,49 @@ public interface ArticleDao {
      */
     @Query("DELETE FROM articles")
     Completable deleteAllArticles();
+
+    /**
+     * Get all articles in a category as a Single list, ordered by creation date (newest first)
+     *
+     * @param categoryId the ID of the category
+     * @return a Single that emits the list of articles in the category
+     */
+    @Query("SELECT * FROM articles WHERE category_id = :categoryId ORDER BY created_at DESC")
+    Single<List<ArticleEntity>> getArticlesByCategoryAsList(long categoryId);
+
+    /**
+     * Search for articles by title or content as a Single list
+     *
+     * @param query the search query
+     * @return a Single that emits the list of matching articles
+     */
+    @Query("SELECT * FROM articles WHERE title LIKE '%' || :query || '%' OR " +
+           "content LIKE '%' || :query || '%' ORDER BY created_at DESC")
+    Single<List<ArticleEntity>> searchArticlesList(String query);
+    
+    /**
+     * Search for articles by title or content directly with a given pattern
+     *
+     * @param pattern the search pattern with wildcards
+     * @return the list of matching articles
+     */
+    @Query("SELECT * FROM articles WHERE title LIKE :pattern OR " +
+           "content LIKE :pattern ORDER BY created_at DESC")
+    List<ArticleEntity> searchArticlesDirect(String pattern);
+    
+    /**
+     * Get all articles sorted by date (newest first)
+     *
+     * @return the list of articles sorted by date
+     */
+    @Query("SELECT * FROM articles ORDER BY published_at DESC, created_at DESC")
+    List<ArticleEntity> getArticlesSortedByDate();
+    
+    /**
+     * Get all articles directly without using RxJava
+     *
+     * @return the list of all articles
+     */
+    @Query("SELECT * FROM articles ORDER BY created_at DESC")
+    List<ArticleEntity> getAllArticlesDirect();
 } 

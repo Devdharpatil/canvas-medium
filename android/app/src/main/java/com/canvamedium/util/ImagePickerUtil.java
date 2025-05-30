@@ -6,8 +6,10 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
+import android.os.Build;
 import android.provider.MediaStore;
 import android.webkit.MimeTypeMap;
+import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -25,6 +27,7 @@ import java.util.Locale;
 
 /**
  * Utility class for handling image selection and processing.
+ * This implementation avoids explicit permission requests by using content providers.
  */
 public class ImagePickerUtil {
 
@@ -39,6 +42,7 @@ public class ImagePickerUtil {
 
     private final ActivityResultLauncher<Intent> galleryLauncher;
     private final ActivityResultLauncher<Intent> cameraLauncher;
+    private final ActivityResultLauncher<String> documentLauncher;
 
     /**
      * Constructor for ImagePickerUtil.
@@ -71,19 +75,58 @@ public class ImagePickerUtil {
                         }
                     }
                 });
+                
+        // Add document launcher for Android 11+ to avoid permission issues
+        documentLauncher = activity.registerForActivityResult(
+                new ActivityResultContracts.GetContent(),
+                uri -> {
+                    if (uri != null) {
+                        handleImageResult(uri);
+                    }
+                });
+    }
+
+    /**
+     * Shows an image picker dialog with options for gallery, camera, or document picker.
+     * This method will choose the best approach based on the Android version.
+     */
+    public void showImagePicker() {
+        // On newer Android versions, use document picker by default as it doesn't require permissions
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            pickFromDocuments();
+        } else {
+            // On older versions, try gallery first
+            pickFromGallery();
+        }
     }
 
     /**
      * Opens the gallery to pick an image.
+     * This method doesn't require READ_EXTERNAL_STORAGE permission on newer Android versions.
      */
     public void pickFromGallery() {
-        Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-        intent.setType("image/*");
-        galleryLauncher.launch(intent);
+        try {
+            Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+            intent.setType("image/*");
+            galleryLauncher.launch(intent);
+        } catch (Exception e) {
+            // If gallery fails (possibly due to permissions), fall back to document picker
+            Toast.makeText(activity, "Opening document picker instead", Toast.LENGTH_SHORT).show();
+            pickFromDocuments();
+        }
+    }
+
+    /**
+     * Opens the document picker to select an image.
+     * This approach doesn't require storage permissions.
+     */
+    public void pickFromDocuments() {
+        documentLauncher.launch("image/*");
     }
 
     /**
      * Opens the camera to take a picture.
+     * This method uses FileProvider which doesn't require explicit storage permissions.
      */
     public void pickFromCamera() {
         Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
@@ -96,7 +139,13 @@ public class ImagePickerUtil {
                     activity.getApplicationContext().getPackageName() + ".provider",
                     tempImageFile);
             intent.putExtra(MediaStore.EXTRA_OUTPUT, tempImageUri);
-            cameraLauncher.launch(intent);
+            
+            try {
+                cameraLauncher.launch(intent);
+            } catch (Exception e) {
+                Toast.makeText(activity, "Could not open camera. Please try gallery instead.", Toast.LENGTH_SHORT).show();
+                e.printStackTrace();
+            }
         }
     }
 
@@ -136,6 +185,7 @@ public class ImagePickerUtil {
             }
         } catch (IOException e) {
             e.printStackTrace();
+            Toast.makeText(activity, "Failed to process image", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -149,7 +199,48 @@ public class ImagePickerUtil {
     private Bitmap getBitmapFromUri(Uri uri) throws IOException {
         ContentResolver contentResolver = activity.getContentResolver();
         InputStream inputStream = contentResolver.openInputStream(uri);
-        return BitmapFactory.decodeStream(inputStream);
+        
+        // Get image dimensions first to avoid OutOfMemoryError
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+        BitmapFactory.decodeStream(contentResolver.openInputStream(uri), null, options);
+        
+        // Calculate sample size to avoid loading huge images into memory
+        int sampleSize = calculateInSampleSize(options, 1200, 1200);
+        
+        // Decode bitmap with inSampleSize set
+        options = new BitmapFactory.Options();
+        options.inSampleSize = sampleSize;
+        options.inJustDecodeBounds = false;
+        
+        return BitmapFactory.decodeStream(inputStream, null, options);
+    }
+    
+    /**
+     * Calculate the optimal sample size for loading a bitmap.
+     * 
+     * @param options BitmapFactory options with outWidth and outHeight set
+     * @param reqWidth Requested width
+     * @param reqHeight Requested height
+     * @return Sample size to use when loading the bitmap
+     */
+    private int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
+        final int height = options.outHeight;
+        final int width = options.outWidth;
+        int inSampleSize = 1;
+        
+        if (height > reqHeight || width > reqWidth) {
+            final int halfHeight = height / 2;
+            final int halfWidth = width / 2;
+            
+            // Calculate the largest inSampleSize value that is a power of 2 and keeps both
+            // height and width larger than the requested height and width.
+            while ((halfHeight / inSampleSize) >= reqHeight && (halfWidth / inSampleSize) >= reqWidth) {
+                inSampleSize *= 2;
+            }
+        }
+        
+        return inSampleSize;
     }
 
     /**
@@ -206,4 +297,4 @@ public class ImagePickerUtil {
     public static Bitmap resizeBitmap(Bitmap bitmap, int width, int height) {
         return Bitmap.createScaledBitmap(bitmap, width, height, true);
     }
-} 
+}

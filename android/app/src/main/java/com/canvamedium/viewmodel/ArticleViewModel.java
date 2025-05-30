@@ -27,6 +27,7 @@ public class ArticleViewModel extends AndroidViewModel {
     private final CompositeDisposable disposables = new CompositeDisposable();
     private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>(false);
     private final MutableLiveData<String> errorMessage = new MutableLiveData<>();
+    private final MutableLiveData<Boolean> isGeneratingDemo = new MutableLiveData<>(false);
 
     /**
      * Constructor for ArticleViewModel
@@ -112,7 +113,7 @@ public class ArticleViewModel extends AndroidViewModel {
         article.setContent(contentJson);
         article.setPreviewText(entity.getPreviewText());
         article.setThumbnailUrl(entity.getThumbnailUrl());
-        article.setTemplateId(entity.getTemplateId());
+        article.setTemplateId(entity.getTemplateId() != null ? entity.getTemplateId() : -1L);
         article.setStatus(entity.getStatus());
         
         // Convert dates from Date to String format
@@ -221,6 +222,34 @@ public class ArticleViewModel extends AndroidViewModel {
     }
 
     /**
+     * Insert an article into the database
+     *
+     * @param article the article to insert
+     * @return LiveData emitting a boolean indicating success
+     */
+    public LiveData<Boolean> insertArticle(ArticleEntity article) {
+        MutableLiveData<Boolean> resultLiveData = new MutableLiveData<>();
+        
+        disposables.add(
+            articleRepository.insertArticle(article)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                    () -> {
+                        // Successfully inserted
+                        resultLiveData.setValue(true);
+                    },
+                    throwable -> {
+                        errorMessage.setValue("Error inserting article: " + throwable.getMessage());
+                        resultLiveData.setValue(false);
+                    }
+                )
+        );
+        
+        return resultLiveData;
+    }
+
+    /**
      * Check if data is currently loading
      *
      * @return LiveData emitting loading state
@@ -230,12 +259,30 @@ public class ArticleViewModel extends AndroidViewModel {
     }
 
     /**
-     * Get error message
+     * Get error message if any
      *
-     * @return LiveData emitting error messages
+     * @return LiveData emitting the error message
      */
     public LiveData<String> getErrorMessage() {
         return errorMessage;
+    }
+
+    /**
+     * Set demo generation status
+     * 
+     * @param isGenerating Whether demo content is being generated
+     */
+    public void setGeneratingDemo(boolean isGenerating) {
+        isGeneratingDemo.setValue(isGenerating);
+    }
+    
+    /**
+     * Get demo generation status
+     * 
+     * @return LiveData emitting whether demo content is being generated
+     */
+    public LiveData<Boolean> getIsGeneratingDemo() {
+        return isGeneratingDemo;
     }
 
     /**

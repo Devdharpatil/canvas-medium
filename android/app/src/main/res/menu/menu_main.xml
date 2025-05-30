@@ -39,6 +39,11 @@
         app:showAsAction="never" />
         
     <item
+        android:id="@+id/action_demo_data"
+        android:title="Generate Demo Articles"
+        app:showAsAction="never" />
+        
+    <item
         android:id="@+id/action_sync"
         android:title="Sync Now"
         app:showAsAction="never" />

@@ -253,7 +253,16 @@ public class AuthManager {
     }
     
     /**
-     * Force a token refresh synchronously.
+     * Refresh the token synchronously.
+     * 
+     * @return true if the token was refreshed successfully, false otherwise
+     */
+    public boolean refreshToken() {
+        return refreshTokenSync();
+    }
+    
+    /**
+     * Refresh the token synchronously.
      * 
      * @return true if the token was refreshed successfully, false otherwise
      */

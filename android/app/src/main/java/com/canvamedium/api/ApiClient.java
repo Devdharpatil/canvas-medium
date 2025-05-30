@@ -16,13 +16,15 @@ import okhttp3.logging.HttpLoggingInterceptor;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
+import com.canvamedium.BuildConfig; // Import BuildConfig
+
 /**
  * API client configuration for Retrofit.
  */
 public class ApiClient {
 
     // 10.0.2.2 is a special IP that allows the Android emulator to connect to the host machine's localhost
-    private static final String BASE_URL = "http://10.0.2.2:8080/";
+    private static final String BASE_URL = BuildConfig.BASE_URL; // Use BASE_URL from BuildConfig
     private static final long CACHE_SIZE = 10 * 1024 * 1024; // 10 MB cache
     private static Retrofit retrofit = null;
     private static OkHttpClient client = null;
@@ -158,20 +160,113 @@ public class ApiClient {
                             .method(original.method(), original.body());
                     
                     Request request = requestBuilder.build();
-                    return chain.proceed(request);
+                    Response response = chain.proceed(request);
+                    
+                    // Handle 401 (Unauthorized) or 403 (Forbidden) responses
+                    if (response.code() == 401 || response.code() == 403) {
+                        // Close the original response
+                        response.close();
+                        
+                        // Try to refresh the token
+                        if (authManager.refreshToken()) {
+                            // Get the new token and retry
+                            token = authManager.getToken();
+                            
+                            // Create a new request with the refreshed token
+                            Request newRequest = original.newBuilder()
+                                    .header("Authorization", "Bearer " + token)
+                                    .method(original.method(), original.body())
+                                    .build();
+                                    
+                            // Try again with the new token
+                            return chain.proceed(newRequest);
+                        } else {
+                            // If refresh fails, log out
+                            android.os.Handler mainHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+                            mainHandler.post(() -> {
+                                authManager.logout();
+                                // Start login activity if app is in foreground
+                                if (context instanceof android.app.Activity) {
+                                    android.app.Activity activity = (android.app.Activity) context;
+                                    if (!activity.isFinishing()) {
+                                        android.content.Intent intent = new android.content.Intent(context, com.canvamedium.activity.LoginActivity.class);
+                                        intent.setFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK | android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                                        context.startActivity(intent);
+                                    }
+                                }
+                            });
+                        }
+                    }
+                    
+                    return response;
                 }
                 
+                // No token available
                 return chain.proceed(original);
             }
         };
 
-        // Build the client with both interceptors and cache
+        // Handle network errors with retry
+        Interceptor networkErrorInterceptor = new Interceptor() {
+            @Override
+            public Response intercept(Chain chain) throws IOException {
+                Request request = chain.request();
+                
+                try {
+                    Response response = chain.proceed(request);
+                    
+                    // Add special handling for 404 responses
+                    if (response.code() == 404) {
+                        // Log the 404 error
+                        android.util.Log.e("ApiClient", "404 error for " + request.url());
+                    }
+                    
+                    return response;
+                } catch (IOException e) {
+                    // Log the network error
+                    android.util.Log.e("ApiClient", "Network error: " + e.getMessage());
+                    
+                    // If we're offline, try to serve a cached response
+                    if (!isNetworkAvailable(context)) {
+                        Request offlineRequest = request.newBuilder()
+                                .header("Cache-Control", "public, only-if-cached, max-stale=" + 60 * 60 * 24 * 7)
+                                .build();
+                        
+                        try {
+                            return chain.proceed(offlineRequest);
+                        } catch (IOException offlineException) {
+                            // If we can't get a cached response, throw the original exception
+                            throw e;
+                        }
+                    }
+                    
+                    // Otherwise, throw the original exception
+                    throw e;
+                }
+            }
+        };
+
+        // Build the client with all interceptors and cache
         return new OkHttpClient.Builder()
                 .cache(cache)
                 .addInterceptor(loggingInterceptor)
                 .addInterceptor(authInterceptor)
+                .addInterceptor(networkErrorInterceptor)
                 .addNetworkInterceptor(cacheInterceptor)
                 .build();
+    }
+    
+    /**
+     * Check if network is available
+     *
+     * @param context The context
+     * @return true if network is available, false otherwise
+     */
+    private static boolean isNetworkAvailable(Context context) {
+        android.net.ConnectivityManager cm = (android.net.ConnectivityManager) 
+                context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        android.net.NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+        return activeNetwork != null && activeNetwork.isConnectedOrConnecting();
     }
     
     /**
@@ -277,4 +372,4 @@ public class ApiClient {
         }
         return getAuthenticatedClient(context).create(serviceClass);
     }
-} 
+}

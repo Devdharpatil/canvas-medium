@@ -26,6 +26,7 @@ CanvaMedium is currently in the Setup Stage:
   - ✅ Backend Setup Phase: Completed (Running with Swagger UI accessible)
   - ✅ Android Setup Phase: Completed (App builds successfully with all errors fixed)
   - ⏳ Full Stack Testing Phase: In Progress (Testing API endpoints and UI flows)
+    - ✅ Android UI Improvements: Completed (Fixed critical UI issues - see Android_ui_fixing.md)
 - **Demo Video Recording Stage**: ⏳ Planned
 
 ## Features

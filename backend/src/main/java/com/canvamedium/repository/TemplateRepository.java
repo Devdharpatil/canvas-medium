@@ -24,6 +24,14 @@ public interface TemplateRepository extends JpaRepository<Template, Long> {
     Page<Template> findByNameContainingIgnoreCase(String name, Pageable pageable);
     
     /**
+     * Find templates by exact name.
+     *
+     * @param name The exact name to search for
+     * @return List of templates with the exact name
+     */
+    List<Template> findByName(String name);
+    
+    /**
      * Find all templates ordered by creation date (descending).
      *
      * @return List of templates ordered by creation date

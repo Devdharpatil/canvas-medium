@@ -6,8 +6,11 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -15,6 +18,10 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.Toast;
+import android.view.Gravity;
+import android.view.ViewGroup;
+import android.graphics.Color;
+import android.widget.TextView;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -40,8 +47,11 @@ import com.google.gson.JsonObject;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
+import java.util.UUID;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -57,6 +67,9 @@ public class TemplateBuilderActivity extends AppCompatActivity implements ImageP
             Manifest.permission.CAMERA,
             Manifest.permission.READ_EXTERNAL_STORAGE
     };
+    // Add debounce constants
+    private static final int TOUCH_DEBOUNCE_DELAY = 16; // ~60fps
+    private static final int MAX_BUFFER_SIZE = 5;
 
     private FrameLayout canvasView;
     private Template currentTemplate;
@@ -67,6 +80,10 @@ public class TemplateBuilderActivity extends AppCompatActivity implements ImageP
     private String currentImageElementId;
     private boolean isUploadingImage = false;
     private Bitmap currentImageBitmap;
+    
+    // Add variables for debouncing touch events
+    private long lastTouchEventTime = 0;
+    private final Map<String, Queue<MotionEvent>> pendingEvents = new HashMap<>();
 
     private ActivityResultLauncher<String[]> permissionsLauncher;
 
@@ -75,23 +92,36 @@ public class TemplateBuilderActivity extends AppCompatActivity implements ImageP
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_template_builder);
         
+        // Enable hardware acceleration for the entire activity
+        getWindow().setFlags(
+            WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+            WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
+        
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         }
         
-        apiService = ApiClient.getClient().create(ApiService.class);
+        apiService = ApiClient.createAuthenticatedService(ApiService.class, this);
         
         // Initialize views
         canvasView = findViewById(R.id.canvas);
+        // Enable hardware acceleration for smoother rendering
+        canvasView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+        
+        // Set up touch event dispatching with debouncing
+        setupTouchEventDispatcher();
+        
         FloatingActionButton fabSave = findViewById(R.id.fab_save);
         
         // Setup image picker
         imagePickerUtil = new ImagePickerUtil(this, this);
         
-        // Setup permissions launcher
+        // Setup permissions launcher and request permissions immediately
+        // to avoid asking later when user adds an image
         setupPermissionsLauncher();
+        requestPermissionsIfNeeded();
         
         // Setup element palette
         setupElementPalette();
@@ -105,10 +135,31 @@ public class TemplateBuilderActivity extends AppCompatActivity implements ImageP
             loadTemplate(templateId);
             setTitle("Edit Template");
         } else {
-            // Create a new template
-            currentTemplate = new Template("New Template", TemplateUtil.createEmptyLayout());
-            setTitle("New Template");
+            // Check if we should create a specific predefined template type
+            String templateType = getIntent().getStringExtra("template_type");
+            if (templateType != null) {
+                // Create a template based on the specified type
+                currentTemplate = Template.createPredefinedTemplate(templateType);
+                setTitle("New " + templateType);
+            } else {
+                // Create a default template (blog template)
+                currentTemplate = createDefaultTemplate();
+                setTitle("New Template");
+            }
+            
+            // Display the template
+            displayTemplate();
         }
+    }
+
+    /**
+     * Creates a new default template with proper styling.
+     * 
+     * @return A styled template
+     */
+    private Template createDefaultTemplate() {
+        // Use the newly created Blog template as default
+        return Template.createPredefinedTemplate(Template.TEMPLATE_TYPE_BLOG);
     }
 
     /**
@@ -127,14 +178,25 @@ public class TemplateBuilderActivity extends AppCompatActivity implements ImageP
                     }
                     
                     if (allGranted) {
-                        showImagePickerDialog();
+                        // Permissions granted, now we can use them
                     } else {
-                        Toast.makeText(this, "Permissions are required to use this feature", 
+                        // Even if permissions are denied, we'll still allow adding a placeholder image box
+                        // User can add actual images when they grant permissions later
+                        Toast.makeText(this, "You can add image placeholders now. Grant permissions later to upload actual images.", 
                                 Toast.LENGTH_SHORT).show();
                     }
                 });
     }
-    
+
+    /**
+     * Requests permissions if needed, but doesn't block the app functionality.
+     */
+    private void requestPermissionsIfNeeded() {
+        if (!hasPermissions()) {
+            permissionsLauncher.launch(REQUIRED_PERMISSIONS);
+        }
+    }
+
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == android.R.id.home) {
@@ -145,35 +207,97 @@ public class TemplateBuilderActivity extends AppCompatActivity implements ImageP
     }
     
     /**
-     * Sets up the element palette with drag-and-drop functionality.
+     * Shows the image picker dialog when user wants to add an image.
+     */
+    private void showImagePickerDialog() {
+        // Use the new simplified method instead of asking for permissions
+        imagePickerUtil.showImagePicker();
+    }
+
+    /**
+     * Adds an image element to the template.
+     */
+    private void addImageElement() {
+        // Check if we have permissions, but don't block the flow
+        if (!hasPermissions()) {
+            // Just notify the user but continue with showing image picker
+            Toast.makeText(this, "Using document picker since permissions aren't granted", Toast.LENGTH_SHORT).show();
+        }
+        
+        // Show the image picker dialog
+        showImagePickerDialog();
+    }
+
+    /**
+     * Sets up the element palette with draggable elements.
      */
     private void setupElementPalette() {
-        LinearLayout textElement = findViewById(R.id.text_element);
-        LinearLayout imageElement = findViewById(R.id.image_element);
-        LinearLayout headerElement = findViewById(R.id.header_element);
-        LinearLayout dividerElement = findViewById(R.id.divider_element);
-        LinearLayout quoteElement = findViewById(R.id.quote_element);
+        LinearLayout elementPalette = findViewById(R.id.element_palette);
         
-        // Text element
-        textElement.setOnClickListener(v -> addElementToCanvas(Template.ELEMENT_TYPE_TEXT));
+        // Add text element
+        TextView textElement = new TextView(this);
+        textElement.setText("Text");
+        textElement.setGravity(Gravity.CENTER);
+        textElement.setBackgroundResource(R.drawable.bg_element_palette);
+        textElement.setTextColor(Color.BLACK);
+        textElement.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        textElement.setPadding(32, 16, 32, 16);
+        textElement.setOnClickListener(v -> addTextElement());
+        elementPalette.addView(textElement);
         
-        // Image element
-        imageElement.setOnClickListener(v -> {
-            if (hasPermissions()) {
-                addElementToCanvas(Template.ELEMENT_TYPE_IMAGE);
-            } else {
-                requestPermissions();
-            }
-        });
+        // Add header element
+        TextView headerElement = new TextView(this);
+        headerElement.setText("Header");
+        headerElement.setGravity(Gravity.CENTER);
+        headerElement.setBackgroundResource(R.drawable.bg_element_palette);
+        headerElement.setTextColor(Color.BLACK);
+        headerElement.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        headerElement.setPadding(32, 16, 32, 16);
+        headerElement.setOnClickListener(v -> addHeaderElement());
+        elementPalette.addView(headerElement);
         
-        // Header element
-        headerElement.setOnClickListener(v -> addElementToCanvas(Template.ELEMENT_TYPE_HEADER));
+        // Add image element
+        TextView imageElement = new TextView(this);
+        imageElement.setText("Image");
+        imageElement.setGravity(Gravity.CENTER);
+        imageElement.setBackgroundResource(R.drawable.bg_element_palette);
+        imageElement.setTextColor(Color.BLACK);
+        imageElement.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        imageElement.setPadding(32, 16, 32, 16);
+        imageElement.setOnClickListener(v -> addImageElement());
+        elementPalette.addView(imageElement);
         
-        // Divider element
-        dividerElement.setOnClickListener(v -> addElementToCanvas(Template.ELEMENT_TYPE_DIVIDER));
+        // Add divider element
+        TextView dividerElement = new TextView(this);
+        dividerElement.setText("Divider");
+        dividerElement.setGravity(Gravity.CENTER);
+        dividerElement.setBackgroundResource(R.drawable.bg_element_palette);
+        dividerElement.setTextColor(Color.BLACK);
+        dividerElement.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        dividerElement.setPadding(32, 16, 32, 16);
+        dividerElement.setOnClickListener(v -> addDividerElement());
+        elementPalette.addView(dividerElement);
         
-        // Quote element
-        quoteElement.setOnClickListener(v -> addElementToCanvas(Template.ELEMENT_TYPE_QUOTE));
+        // Add quote element
+        TextView quoteElement = new TextView(this);
+        quoteElement.setText("Quote");
+        quoteElement.setGravity(Gravity.CENTER);
+        quoteElement.setBackgroundResource(R.drawable.bg_element_palette);
+        quoteElement.setTextColor(Color.BLACK);
+        quoteElement.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        quoteElement.setPadding(32, 16, 32, 16);
+        quoteElement.setOnClickListener(v -> addQuoteElement());
+        elementPalette.addView(quoteElement);
     }
 
     /**
@@ -188,110 +312,6 @@ public class TemplateBuilderActivity extends AppCompatActivity implements ImageP
             }
         }
         return true;
-    }
-
-    /**
-     * Requests the required permissions.
-     */
-    private void requestPermissions() {
-        List<String> permissionsToRequest = new ArrayList<>();
-        for (String permission : REQUIRED_PERMISSIONS) {
-            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
-                permissionsToRequest.add(permission);
-            }
-        }
-
-        if (!permissionsToRequest.isEmpty()) {
-            permissionsLauncher.launch(permissionsToRequest.toArray(new String[0]));
-        }
-    }
-
-    /**
-     * Shows the image picker dialog.
-     */
-    private void showImagePickerDialog() {
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_image_picker, null);
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setView(dialogView)
-                .create();
-
-        dialogView.findViewById(R.id.layout_camera).setOnClickListener(v -> {
-            imagePickerUtil.pickFromCamera();
-            dialog.dismiss();
-        });
-
-        dialogView.findViewById(R.id.layout_gallery).setOnClickListener(v -> {
-            imagePickerUtil.pickFromGallery();
-            dialog.dismiss();
-        });
-
-        dialog.show();
-    }
-    
-    /**
-     * Adds a new element to the canvas.
-     *
-     * @param elementType The type of element to add
-     */
-    private void addElementToCanvas(String elementType) {
-        // Calculate default size based on element type
-        int width = 300;
-        int height = 150;
-        
-        if (elementType.equals(Template.ELEMENT_TYPE_IMAGE)) {
-            width = 400;
-            height = 300;
-        } else if (elementType.equals(Template.ELEMENT_TYPE_DIVIDER)) {
-            width = 400;
-            height = 50;
-        } else if (elementType.equals(Template.ELEMENT_TYPE_HEADER)) {
-            width = 400;
-            height = 100;
-        }
-        
-        // Create element
-        TemplateElement element = new TemplateElement(elementType, 50, 50, width, height);
-        
-        // Add default properties based on type
-        if (elementType.equals(Template.ELEMENT_TYPE_TEXT)) {
-            element.addProperty("text", "Double tap to edit text");
-        } else if (elementType.equals(Template.ELEMENT_TYPE_HEADER)) {
-            element.addProperty("text", "Header Title");
-        } else if (elementType.equals(Template.ELEMENT_TYPE_QUOTE)) {
-            element.addProperty("text", "Double tap to edit quote");
-        } else if (elementType.equals(Template.ELEMENT_TYPE_IMAGE)) {
-            currentImageElementId = element.getId();
-            element.addProperty("placeholder", true);
-            showImagePickerDialog();
-        }
-        
-        // Add element to template
-        currentTemplate = TemplateUtil.addElement(currentTemplate, element);
-        
-        // Add element view to canvas
-        addElementViewToCanvas(element);
-    }
-    
-    /**
-     * Creates and adds a draggable element view to the canvas.
-     *
-     * @param element The TemplateElement to add
-     */
-    private void addElementViewToCanvas(TemplateElement element) {
-        DraggableElementView elementView = new DraggableElementView(this);
-        elementView.setElement(element);
-        
-        // Set a position change listener
-        elementView.setOnPositionChangedListener((view, updatedElement) -> {
-            // Update element in template
-            currentTemplate = TemplateUtil.updateElement(currentTemplate, updatedElement.getId(), updatedElement);
-        });
-        
-        // Add to canvas
-        canvasView.addView(elementView);
-        
-        // Store view reference
-        elementViews.put(element.getId(), elementView);
     }
 
     /**
@@ -522,19 +542,44 @@ public class TemplateBuilderActivity extends AppCompatActivity implements ImageP
     }
     
     /**
-     * Displays the current template on the canvas.
+     * Displays an existing template on the canvas.
      */
     private void displayTemplate() {
-        // Clear current elements
+        if (currentTemplate == null) return;
+        
+        // Clear existing views
         canvasView.removeAllViews();
         elementViews.clear();
         
-        // Extract elements from template
+        // Add each element to the canvas
         List<TemplateElement> elements = TemplateUtil.extractElements(currentTemplate);
         
-        // Add each element to canvas
-        for (TemplateElement element : elements) {
-            addElementViewToCanvas(element);
+        // If no elements exist in the template, add some default elements
+        if (elements.isEmpty()) {
+            currentTemplate = createDefaultTemplate();
+            elements = TemplateUtil.extractElements(currentTemplate);
+        }
+        
+        // Add elements in batches to avoid UI lag
+        if (elements.size() > 5) {
+            // First batch immediately
+            final List<TemplateElement> firstBatch = elements.subList(0, 5);
+            for (TemplateElement element : firstBatch) {
+                addElementViewToCanvas(element);
+            }
+            
+            // Rest of elements after a short delay for smoother rendering
+            final List<TemplateElement> remainingElements = elements.subList(5, elements.size());
+            canvasView.post(() -> {
+                for (TemplateElement element : remainingElements) {
+                    addElementViewToCanvas(element);
+                }
+            });
+        } else {
+            // Fewer elements, add them all immediately
+            for (TemplateElement element : elements) {
+                addElementViewToCanvas(element);
+            }
         }
     }
     
@@ -618,5 +663,237 @@ public class TemplateBuilderActivity extends AppCompatActivity implements ImageP
                         "Error saving template: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    /**
+     * Sets up a touch event dispatcher that handles debouncing of touch events
+     * to prevent excessive UI updates during drag operations
+     */
+    private void setupTouchEventDispatcher() {
+        canvasView.setOnTouchListener((v, event) -> {
+            // Find the child view that received the touch event
+            float x = event.getX();
+            float y = event.getY();
+            
+            // Let the canvas handle the touch if it's not on a child view
+            for (int i = canvasView.getChildCount() - 1; i >= 0; i--) {
+                View child = canvasView.getChildAt(i);
+                
+                // Check if the touch is within this child's bounds
+                if (x >= child.getX() && x <= child.getX() + child.getWidth() &&
+                    y >= child.getY() && y <= child.getY() + child.getHeight()) {
+                    
+                    // If this is a DraggableElementView, apply our debouncing logic
+                    if (child instanceof DraggableElementView) {
+                        DraggableElementView elementView = (DraggableElementView) child;
+                        String elementId = elementView.getElement().getId();
+                        
+                        // Process the event based on its action type
+                        switch (event.getAction()) {
+                            case MotionEvent.ACTION_DOWN:
+                                // Always pass down events immediately
+                                dispatchTouchEventToChild(elementView, event);
+                                
+                                // Clear any pending events for this element
+                                pendingEvents.put(elementId, new LinkedList<>());
+                                break;
+                                
+                            case MotionEvent.ACTION_MOVE:
+                                // Add to queue
+                                Queue<MotionEvent> queue = pendingEvents.get(elementId);
+                                if (queue == null) {
+                                    queue = new LinkedList<>();
+                                    pendingEvents.put(elementId, queue);
+                                }
+                                
+                                // Create a copy of the event since the original will be recycled
+                                queue.add(MotionEvent.obtain(event));
+                                
+                                // Process the queue if we've exceeded the debounce delay
+                                long currentTime = SystemClock.uptimeMillis();
+                                if (currentTime - lastTouchEventTime > TOUCH_DEBOUNCE_DELAY) {
+                                    processEventQueue(elementId, elementView);
+                                    lastTouchEventTime = currentTime;
+                                }
+                                break;
+                                
+                            case MotionEvent.ACTION_UP:
+                            case MotionEvent.ACTION_CANCEL:
+                                // Process any remaining events in the queue
+                                processEventQueue(elementId, elementView);
+                                
+                                // Then send the final up/cancel event
+                                dispatchTouchEventToChild(elementView, event);
+                                
+                                // Clear the queue
+                                if (pendingEvents.containsKey(elementId)) {
+                                    for (MotionEvent e : pendingEvents.get(elementId)) {
+                                        e.recycle();
+                                    }
+                                    pendingEvents.remove(elementId);
+                                }
+                                break;
+                        }
+                        
+                        return true;
+                    }
+                }
+            }
+            
+            // Not handled by a child view
+            return false;
+        });
+    }
+    
+    /**
+     * Process queued touch events for an element
+     * 
+     * @param elementId The ID of the element
+     * @param elementView The view for the element
+     */
+    private void processEventQueue(String elementId, DraggableElementView elementView) {
+        Queue<MotionEvent> queue = pendingEvents.get(elementId);
+        if (queue != null && !queue.isEmpty()) {
+            // If we have too many events, skip some to maintain responsiveness
+            while (queue.size() > MAX_BUFFER_SIZE) {
+                MotionEvent skippedEvent = queue.poll();
+                if (skippedEvent != null) {
+                    skippedEvent.recycle();
+                }
+            }
+            
+            // Process the most recent event
+            MotionEvent lastEvent = queue.poll();
+            if (lastEvent != null) {
+                dispatchTouchEventToChild(elementView, lastEvent);
+                
+                // Recycle the event when done
+                lastEvent.recycle();
+            }
+            
+            // Clear the rest of the queue
+            for (MotionEvent e : queue) {
+                e.recycle();
+            }
+            queue.clear();
+        }
+    }
+    
+    /**
+     * Dispatches a touch event to a child view
+     * 
+     * @param view The target view
+     * @param event The motion event to dispatch
+     */
+    private void dispatchTouchEventToChild(View view, MotionEvent event) {
+        if (view == null || event == null) return;
+        
+        // Adjust coordinates relative to the child view
+        MotionEvent transformedEvent = MotionEvent.obtain(event);
+        transformedEvent.offsetLocation(-view.getX(), -view.getY());
+        
+        // Dispatch the event
+        view.dispatchTouchEvent(transformedEvent);
+        
+        // Recycle the transformed event
+        transformedEvent.recycle();
+    }
+
+    /**
+     * Adds a text element to the canvas.
+     */
+    private void addTextElement() {
+        TemplateElement element = new TemplateElement();
+        element.setId(UUID.randomUUID().toString());
+        element.setType(Template.ELEMENT_TYPE_TEXT);
+        element.setX(100);
+        element.setY(100);
+        element.setWidth(400);
+        element.setHeight(100);
+        
+        Map<String, Object> properties = new HashMap<>();
+        properties.put("text", "Sample Text");
+        element.setProperties(properties);
+        
+        currentTemplate.getElements().add(element);
+        addElementViewToCanvas(element);
+    }
+
+    /**
+     * Adds a header element to the canvas.
+     */
+    private void addHeaderElement() {
+        TemplateElement element = new TemplateElement();
+        element.setId(UUID.randomUUID().toString());
+        element.setType(Template.ELEMENT_TYPE_HEADER);
+        element.setX(100);
+        element.setY(50);
+        element.setWidth(500);
+        element.setHeight(80);
+        
+        Map<String, Object> properties = new HashMap<>();
+        properties.put("text", "Header Title");
+        element.setProperties(properties);
+        
+        currentTemplate.getElements().add(element);
+        addElementViewToCanvas(element);
+    }
+
+    /**
+     * Adds a divider element to the canvas.
+     */
+    private void addDividerElement() {
+        TemplateElement element = new TemplateElement();
+        element.setId(UUID.randomUUID().toString());
+        element.setType(Template.ELEMENT_TYPE_DIVIDER);
+        element.setX(100);
+        element.setY(200);
+        element.setWidth(400);
+        element.setHeight(20);
+        
+        currentTemplate.getElements().add(element);
+        addElementViewToCanvas(element);
+    }
+
+    /**
+     * Adds a quote element to the canvas.
+     */
+    private void addQuoteElement() {
+        TemplateElement element = new TemplateElement();
+        element.setId(UUID.randomUUID().toString());
+        element.setType(Template.ELEMENT_TYPE_QUOTE);
+        element.setX(100);
+        element.setY(250);
+        element.setWidth(400);
+        element.setHeight(120);
+        
+        Map<String, Object> properties = new HashMap<>();
+        properties.put("text", "Sample Quote");
+        element.setProperties(properties);
+        
+        currentTemplate.getElements().add(element);
+        addElementViewToCanvas(element);
+    }
+
+    /**
+     * Adds an element view to the canvas.
+     * 
+     * @param element The element to add
+     */
+    private void addElementViewToCanvas(TemplateElement element) {
+        DraggableElementView elementView = new DraggableElementView(this);
+        elementView.setElement(element);
+        elementView.setOnPositionChangedListener((view, updatedElement) -> {
+            // Update the element in the template
+            for (int i = 0; i < currentTemplate.getElements().size(); i++) {
+                if (currentTemplate.getElements().get(i).getId().equals(updatedElement.getId())) {
+                    currentTemplate.getElements().set(i, updatedElement);
+                    break;
+                }
+            }
+        });
+        
+        canvasView.addView(elementView);
+        elementViews.put(element.getId(), elementView);
     }
 } 

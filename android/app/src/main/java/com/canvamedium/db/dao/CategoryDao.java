@@ -108,4 +108,12 @@ public interface CategoryDao {
      */
     @Query("DELETE FROM categories")
     Completable deleteAllCategories();
+
+    /**
+     * Get all categories in the database, ordered by name, as a Single
+     *
+     * @return a Single that emits the list of categories
+     */
+    @Query("SELECT * FROM categories ORDER BY name ASC")
+    Single<List<CategoryEntity>> getAllCategoriesList();
 } 

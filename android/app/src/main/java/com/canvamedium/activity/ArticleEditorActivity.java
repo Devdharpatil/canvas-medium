@@ -90,7 +90,7 @@ public class ArticleEditorActivity extends AppCompatActivity implements Template
         setContentView(R.layout.activity_article_editor);
         
         // Initialize API service
-        apiService = ApiClient.getClient().create(ApiService.class);
+        apiService = ApiClient.createAuthenticatedService(ApiService.class, this);
         
         // Initialize content builder
         contentBuilder = new ContentBuilder();
@@ -98,7 +98,9 @@ public class ArticleEditorActivity extends AppCompatActivity implements Template
         // Set up toolbar
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        }
         
         // Initialize views
         titleEditText = findViewById(R.id.title_edit_text);
@@ -116,13 +118,34 @@ public class ArticleEditorActivity extends AppCompatActivity implements Template
         templateAdapter = new TemplateSelectionAdapter(this, this);
         templateRecyclerView.setAdapter(templateAdapter);
         
+        // Check mode and source of navigation
+        String mode = getIntent().getStringExtra("mode");
+        String source = getIntent().getStringExtra("source");
+        
         // Check if we're editing an existing article
-        if (getIntent().hasExtra("article")) {
+        if (getIntent().hasExtra(EXTRA_ARTICLE_ID)) {
+            // Load the article with the given ID
+            long articleId = getIntent().getLongExtra(EXTRA_ARTICLE_ID, -1);
+            if (articleId != -1) {
+                isEditMode = true;
+                setTitle("Edit Article");
+                loadArticleById(articleId);
+            }
+        } else if (getIntent().hasExtra("article")) {
             editingArticle = (Article) getIntent().getSerializableExtra("article");
             isEditMode = true;
             setTitle("Edit Article");
             loadArticleData(editingArticle);
+        } else if ("create_new".equals(mode) && "fab_home".equals(source)) {
+            // Coming from FAB, focus on title and show special welcome message
+            setTitle("Create Article");
+            titleEditText.requestFocus();
+            Toast.makeText(this, "Create your article by selecting a template first", Toast.LENGTH_LONG).show();
+            // Pre-populate with timestamp to help user
+            String timestamp = java.text.DateFormat.getDateTimeInstance().format(new java.util.Date());
+            titleEditText.setText("Draft Article - " + timestamp);
         } else {
+            // Default create mode
             setTitle("Create Article");
         }
         
@@ -658,5 +681,75 @@ public class ArticleEditorActivity extends AppCompatActivity implements Template
      */
     public boolean isEditMode() {
         return isEditMode;
+    }
+
+    /**
+     * Loads an article by its ID from the API.
+     * 
+     * @param articleId The ID of the article to load
+     */
+    private void loadArticleById(long articleId) {
+        // Show loading indicator
+        View loadingIndicator = findViewById(R.id.loading_indicator);
+        if (loadingIndicator != null) {
+            loadingIndicator.setVisibility(View.VISIBLE);
+        }
+        
+        // Disable UI while loading
+        setUiEnabled(false);
+        
+        // Call API to get article details
+        apiService.getArticleById(articleId).enqueue(new Callback<Article>() {
+            @Override
+            public void onResponse(Call<Article> call, Response<Article> response) {
+                // Hide loading indicator
+                if (loadingIndicator != null) {
+                    loadingIndicator.setVisibility(View.GONE);
+                }
+                
+                // Re-enable UI
+                setUiEnabled(true);
+                
+                if (response.isSuccessful() && response.body() != null) {
+                    editingArticle = response.body();
+                    loadArticleData(editingArticle);
+                } else {
+                    Toast.makeText(ArticleEditorActivity.this, 
+                        "Failed to load article", Toast.LENGTH_SHORT).show();
+                    finish();
+                }
+            }
+            
+            @Override
+            public void onFailure(Call<Article> call, Throwable t) {
+                // Hide loading indicator
+                if (loadingIndicator != null) {
+                    loadingIndicator.setVisibility(View.GONE);
+                }
+                
+                // Re-enable UI
+                setUiEnabled(true);
+                
+                Toast.makeText(ArticleEditorActivity.this, 
+                    "Error loading article: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                finish();
+            }
+        });
+    }
+
+    /**
+     * Helper method to enable/disable all input UI elements
+     */
+    private void setUiEnabled(boolean enabled) {
+        titleEditText.setEnabled(enabled);
+        previewTextEditText.setEnabled(enabled);
+        selectThumbnailButton.setEnabled(enabled);
+        saveDraftButton.setEnabled(enabled);
+        previewButton.setEnabled(enabled);
+        publishButton.setEnabled(enabled);
+        // Disable/enable template selection only if we're not in edit mode
+        if (!isEditMode) {
+            templateRecyclerView.setEnabled(enabled);
+        }
     }
 } 

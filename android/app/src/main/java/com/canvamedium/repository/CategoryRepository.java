@@ -246,4 +246,103 @@ public class CategoryRepository {
         }
         return categoryEntities;
     }
+
+    /**
+     * Get all categories with a callback for immediate use
+     *
+     * @param callback The callback to receive categories or error
+     */
+    public void getAllCategories(CategoryCallback callback) {
+        if (networkUtils.isOnline()) {
+            // Try to get from API first
+            executor.execute(() -> {
+                try {
+                    Response<List<Category>> response = apiService.getAllCategories().execute();
+                    if (response.isSuccessful() && response.body() != null) {
+                        // Save to database and convert to model objects
+                        List<CategoryEntity> entities = convertToCategoryEntities(response.body());
+                        categoryDao.insertCategoryList(entities)
+                                .subscribeOn(Schedulers.io())
+                                .subscribe(() -> {
+                                    // Return the original model objects
+                                    callback.onResult(response.body(), null);
+                                }, throwable -> {
+                                    Log.e(TAG, "Error saving categories to database", throwable);
+                                    callback.onResult(null, "Error saving categories to database");
+                                });
+                    } else {
+                        // Fall back to database
+                        getCategoriesFromDatabase(callback);
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Error fetching categories from API", e);
+                    // Fall back to database
+                    getCategoriesFromDatabase(callback);
+                }
+            });
+        } else {
+            // Offline mode, get from database
+            getCategoriesFromDatabase(callback);
+        }
+    }
+
+    /**
+     * Get categories from the local database with a callback
+     *
+     * @param callback The callback to receive categories or error
+     */
+    private void getCategoriesFromDatabase(CategoryCallback callback) {
+        categoryDao.getAllCategoriesList()
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(categoryEntities -> {
+                    List<Category> categories = new ArrayList<>();
+                    for (CategoryEntity entity : categoryEntities) {
+                        categories.add(convertToCategory(entity));
+                    }
+                    callback.onResult(categories, null);
+                }, throwable -> {
+                    Log.e(TAG, "Error loading categories from database", throwable);
+                    callback.onResult(null, "Error loading categories from database");
+                });
+    }
+
+    /**
+     * Convert a CategoryEntity to a Category model object
+     *
+     * @param entity The entity to convert
+     * @return The Category model object
+     */
+    private Category convertToCategory(CategoryEntity entity) {
+        Category category = new Category();
+        category.setId(entity.getId());
+        category.setName(entity.getName());
+        category.setDescription(entity.getDescription());
+        category.setIconUrl(entity.getIconUrl());
+        
+        // Convert Date objects to strings
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
+        if (entity.getCreatedAt() != null) {
+            category.setCreatedAt(dateFormat.format(entity.getCreatedAt()));
+        }
+        if (entity.getUpdatedAt() != null) {
+            category.setUpdatedAt(dateFormat.format(entity.getUpdatedAt()));
+        }
+        
+        category.setArticleCount(entity.getArticleCount());
+        return category;
+    }
+
+    /**
+     * Callback interface for category operations
+     */
+    public interface CategoryCallback {
+        /**
+         * Called when the operation completes
+         * 
+         * @param categories The list of categories, or null if there was an error
+         * @param errorMsg The error message, or null if the operation succeeded
+         */
+        void onResult(List<Category> categories, String errorMsg);
+    }
 } 

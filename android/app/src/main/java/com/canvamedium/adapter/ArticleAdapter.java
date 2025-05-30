@@ -52,11 +52,12 @@ public class ArticleAdapter extends ListAdapter<Article, ArticleAdapter.ArticleV
         @Override
         public boolean areContentsTheSame(@NonNull Article oldItem, @NonNull Article newItem) {
             // Compare the relevant fields to determine if the content is the same
-            return oldItem.getTitle().equals(newItem.getTitle())
-                    && oldItem.getPreviewText().equals(newItem.getPreviewText())
+            // Added null checks to prevent NullPointerException
+            return (oldItem.getTitle() == null ? newItem.getTitle() == null : oldItem.getTitle().equals(newItem.getTitle()))
+                    && (oldItem.getPreviewText() == null ? newItem.getPreviewText() == null : oldItem.getPreviewText().equals(newItem.getPreviewText()))
                     && oldItem.isBookmarked() == newItem.isBookmarked()
-                    && oldItem.getStatus().equals(newItem.getStatus())
-                    && oldItem.getUpdatedAt().equals(newItem.getUpdatedAt());
+                    && (oldItem.getStatus() == null ? newItem.getStatus() == null : oldItem.getStatus().equals(newItem.getStatus()))
+                    && (oldItem.getUpdatedAt() == null ? newItem.getUpdatedAt() == null : oldItem.getUpdatedAt().equals(newItem.getUpdatedAt()));
         }
     };
 

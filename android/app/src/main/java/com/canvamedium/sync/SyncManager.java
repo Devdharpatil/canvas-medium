@@ -16,6 +16,10 @@ import com.canvamedium.util.NetworkUtils;
 
 import java.util.concurrent.TimeUnit;
 
+import io.reactivex.rxjava3.core.Completable;
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
+import io.reactivex.rxjava3.schedulers.Schedulers;
+
 /**
  * Manager class for handling synchronization of local data with the server.
  */
@@ -93,5 +97,27 @@ public class SyncManager {
         articleRepository.syncUnsyncedArticles();
         categoryRepository.syncUnsyncedCategories();
         tagRepository.syncUnsyncedTags();
+    }
+
+    /**
+     * Returns an RxJava observable for synchronizing data
+     *
+     * @return Completable observable
+     */
+    public Completable requestSync() {
+        return Completable.fromAction(() -> {
+            if (!networkUtils.isOnline()) {
+                throw new IllegalStateException("Device is offline");
+            }
+
+            Log.d(TAG, "Starting manual sync");
+
+            // Sync all unsynced data
+            articleRepository.syncUnsyncedArticles();
+            categoryRepository.syncUnsyncedCategories();
+            tagRepository.syncUnsyncedTags();
+        })
+        .subscribeOn(Schedulers.io())
+        .observeOn(AndroidSchedulers.mainThread());
     }
 } 

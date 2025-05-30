@@ -6,7 +6,6 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
-import android.widget.Switch;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -18,6 +17,7 @@ import com.canvamedium.api.UserService;
 import com.canvamedium.model.SettingsUpdateRequest;
 import com.canvamedium.model.UserProfile;
 import com.canvamedium.util.AuthManager;
+import com.google.android.material.switchmaterial.SwitchMaterial;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -31,9 +31,9 @@ public class SettingsActivity extends AppCompatActivity {
     private EditText editTextCurrentPassword;
     private EditText editTextNewPassword;
     private EditText editTextConfirmPassword;
-    private Switch switchNotifications;
-    private Switch switchDarkMode;
-    private Switch switchEmailUpdates;
+    private SwitchMaterial switchNotifications;
+    private SwitchMaterial switchDarkMode;
+    private SwitchMaterial switchEmailUpdates;
     private Button buttonSaveSettings;
     private Button buttonChangePassword;
     private ProgressBar progressBar;

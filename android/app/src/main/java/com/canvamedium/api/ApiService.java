@@ -177,6 +177,22 @@ public interface ApiService {
     Call<Map<String, Object>> getFeaturedArticles(@QueryMap Map<String, Object> options);
     
     /**
+     * Get articles sorted by date (newest first).
+     *
+     * @return Call object containing the list of articles sorted by date
+     */
+    @GET("api/articles?sort=publishedAt,desc")
+    Call<List<Article>> getArticlesSortedByDate();
+    
+    /**
+     * Get articles sorted by popularity.
+     *
+     * @return Call object containing the list of articles sorted by views or popularity
+     */
+    @GET("api/articles?sort=popularity,desc")
+    Call<List<Article>> getArticlesSortedByPopularity();
+    
+    /**
      * Get an article by ID.
      *
      * @param id The article ID

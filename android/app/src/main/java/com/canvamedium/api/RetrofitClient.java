@@ -8,12 +8,14 @@ import okhttp3.logging.HttpLoggingInterceptor;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
+import com.canvamedium.BuildConfig; // Import BuildConfig
+
 /**
  * Singleton class for Retrofit client configuration.
  */
 public class RetrofitClient {
     
-    private static final String BASE_URL = "http://10.0.2.2:8080/"; // localhost equivalent for Android emulator
+    private static final String BASE_URL = BuildConfig.BASE_URL; // Use BASE_URL from BuildConfig
     private static Retrofit retrofit = null;
     
     /**
@@ -64,4 +66,4 @@ public class RetrofitClient {
     public static <T> T createService(Class<T> serviceClass) {
         return getClient().create(serviceClass);
     }
-} 
+}

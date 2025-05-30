@@ -3,8 +3,11 @@ package com.canvamedium.util;
 import com.canvamedium.model.Template;
 import com.canvamedium.model.TemplateElement;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -12,24 +15,24 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Utility class for template-related operations.
+ * Utility class for handling template operations.
  */
 public class TemplateUtil {
-    
-    private static final Gson gson = new Gson();
+
+    // Cache for parsed templates to improve performance
+    private static final Map<String, List<TemplateElement>> elementCache = new ConcurrentHashMap<>();
+    private static final Gson gson = new GsonBuilder().create();
     
     /**
-     * Creates an empty template layout structure.
+     * Creates an empty template layout.
      *
-     * @return JsonObject representing an empty layout
+     * @return A JsonObject representing an empty layout
      */
     public static JsonObject createEmptyLayout() {
         JsonObject layout = new JsonObject();
-        layout.addProperty("canvasWidth", 1080);
-        layout.addProperty("canvasHeight", 1920);
-        layout.addProperty("backgroundColor", "#FFFFFF");
         layout.add("elements", new JsonArray());
         return layout;
     }
@@ -41,32 +44,39 @@ public class TemplateUtil {
      * @return List of TemplateElements, or empty list if none exist
      */
     public static List<TemplateElement> extractElements(Template template) {
-        if (template == null || template.getLayout() == null) {
-            return Collections.emptyList();
+        // Check cache first
+        String templateId = template.getId() != null ? template.getId().toString() : "temp";
+        if (elementCache.containsKey(templateId)) {
+            return new ArrayList<>(elementCache.get(templateId));
         }
+
+        List<TemplateElement> result = new ArrayList<>();
+
+        // Get the template's layout
+        JsonObject layout = template.getLayout();
+        if (layout == null) {
+            return result;
+        }
+
+        // Extract the elements array
+        JsonArray elements = layout.getAsJsonArray("elements");
+        if (elements == null) {
+            return result;
+        }
+
+        // Convert each JsonObject to a TemplateElement
+        for (JsonElement element : elements) {
+            if (element.isJsonObject()) {
+                JsonObject elementJson = element.getAsJsonObject();
+                TemplateElement templateElement = gson.fromJson(elementJson, TemplateElement.class);
+                result.add(templateElement);
+            }
+        }
+
+        // Store in cache
+        elementCache.put(templateId, new ArrayList<>(result));
         
-        try {
-            JsonObject layout = template.getLayout();
-            if (!layout.has("elements")) {
-                return Collections.emptyList();
-            }
-            
-            JsonArray elementsArray = layout.getAsJsonArray("elements");
-            List<TemplateElement> elements = new ArrayList<>();
-            
-            for (int i = 0; i < elementsArray.size(); i++) {
-                JsonObject elementJson = elementsArray.get(i).getAsJsonObject();
-                TemplateElement element = gson.fromJson(elementJson, TemplateElement.class);
-                elements.add(element);
-            }
-            
-            // Sort by zIndex
-            Collections.sort(elements, Comparator.comparingInt(TemplateElement::getZIndex));
-            return elements;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return Collections.emptyList();
-        }
+        return result;
     }
     
     /**
@@ -95,6 +105,10 @@ public class TemplateUtil {
         
         layout.add("elements", elementsArray);
         template.setLayout(layout);
+
+        // Invalidate cache for this template
+        clearCacheForTemplate(template);
+
         return template;
     }
     
@@ -106,9 +120,30 @@ public class TemplateUtil {
      * @return Updated Template object
      */
     public static Template addElement(Template template, TemplateElement element) {
-        List<TemplateElement> elements = extractElements(template);
-        elements.add(element);
-        return updateElements(template, elements);
+        // Get the template's layout
+        JsonObject layout = template.getLayout();
+        if (layout == null) {
+            layout = createEmptyLayout();
+        }
+
+        // Extract the elements array or create a new one
+        JsonArray elements = layout.getAsJsonArray("elements");
+        if (elements == null) {
+            elements = new JsonArray();
+            layout.add("elements", elements);
+        }
+
+        // Convert element to JsonObject and add it to the elements array
+        JsonObject elementJson = gson.toJsonTree(element).getAsJsonObject();
+        elements.add(elementJson);
+
+        // Update the template's layout
+        template.setLayout(layout);
+
+        // Invalidate cache for this template
+        clearCacheForTemplate(template);
+
+        return template;
     }
     
     /**
@@ -116,22 +151,46 @@ public class TemplateUtil {
      *
      * @param template   The template containing the element
      * @param elementId  The ID of the element to update
-     * @param newElement The updated element data
+     * @param element    The updated element
      * @return Updated Template object, or null if element was not found
      */
-    public static Template updateElement(Template template, String elementId, TemplateElement newElement) {
-        List<TemplateElement> elements = extractElements(template);
+    public static Template updateElement(Template template, String elementId, TemplateElement element) {
+        // Get the template's layout
+        JsonObject layout = template.getLayout();
+        if (layout == null) {
+            return template;
+        }
+
+        // Extract the elements array
+        JsonArray elements = layout.getAsJsonArray("elements");
+        if (elements == null) {
+            return template;
+        }
+
+        // Find the element with the matching ID and update it
         boolean found = false;
-        
         for (int i = 0; i < elements.size(); i++) {
-            if (elements.get(i).getId().equals(elementId)) {
-                elements.set(i, newElement);
+            JsonObject elementJson = elements.get(i).getAsJsonObject();
+            if (elementJson.has("id") && elementJson.get("id").getAsString().equals(elementId)) {
+                // Replace the element
+                elements.set(i, gson.toJsonTree(element).getAsJsonObject());
                 found = true;
                 break;
             }
         }
-        
-        return found ? updateElements(template, elements) : null;
+
+        // If the element wasn't found, add it as a new element
+        if (!found) {
+            elements.add(gson.toJsonTree(element).getAsJsonObject());
+        }
+
+        // Update the template's layout
+        template.setLayout(layout);
+
+        // Invalidate cache for this template
+        clearCacheForTemplate(template);
+
+        return template;
     }
     
     /**
@@ -142,18 +201,38 @@ public class TemplateUtil {
      * @return Updated Template object, or null if element was not found
      */
     public static Template removeElement(Template template, String elementId) {
-        List<TemplateElement> elements = extractElements(template);
-        boolean found = false;
-        
+        // Get the template's layout
+        JsonObject layout = template.getLayout();
+        if (layout == null) {
+            return template;
+        }
+
+        // Extract the elements array
+        JsonArray elements = layout.getAsJsonArray("elements");
+        if (elements == null) {
+            return template;
+        }
+
+        // Find the element with the matching ID and remove it
+        JsonArray updatedElements = new JsonArray();
         for (int i = 0; i < elements.size(); i++) {
-            if (elements.get(i).getId().equals(elementId)) {
-                elements.remove(i);
-                found = true;
-                break;
+            JsonObject elementJson = elements.get(i).getAsJsonObject();
+            if (!elementJson.has("id") || !elementJson.get("id").getAsString().equals(elementId)) {
+                // Keep elements that don't match the ID
+                updatedElements.add(elementJson);
             }
         }
-        
-        return found ? updateElements(template, elements) : null;
+
+        // Update the elements array in the layout
+        layout.add("elements", updatedElements);
+
+        // Update the template's layout
+        template.setLayout(layout);
+
+        // Invalidate cache for this template
+        clearCacheForTemplate(template);
+
+        return template;
     }
     
     /**
@@ -221,5 +300,51 @@ public class TemplateUtil {
         
         template.setLayout(layout);
         return template;
+    }
+
+    /**
+     * Gets an element by ID from a template.
+     *
+     * @param template  The template containing the element
+     * @param elementId The ID of the element to find
+     * @return The found element, or null if not found
+     */
+    public static TemplateElement getElementById(Template template, String elementId) {
+        // Look through cached elements first for performance
+        String templateId = template.getId() != null ? template.getId().toString() : "temp";
+        if (elementCache.containsKey(templateId)) {
+            List<TemplateElement> elements = elementCache.get(templateId);
+            for (TemplateElement element : elements) {
+                if (element.getId().equals(elementId)) {
+                    return element;
+                }
+            }
+        }
+
+        // Fall back to non-cached lookup
+        for (TemplateElement element : extractElements(template)) {
+            if (element.getId().equals(elementId)) {
+                return element;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Clears the cache for a specific template.
+     *
+     * @param template The template to clear cache for
+     */
+    private static void clearCacheForTemplate(Template template) {
+        String templateId = template.getId() != null ? template.getId().toString() : "temp";
+        elementCache.remove(templateId);
+    }
+
+    /**
+     * Clears the entire element cache.
+     */
+    public static void clearCache() {
+        elementCache.clear();
     }
 } 

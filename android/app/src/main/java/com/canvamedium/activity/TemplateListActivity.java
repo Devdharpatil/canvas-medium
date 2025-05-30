@@ -1,5 +1,6 @@
 package com.canvamedium.activity;
 
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.MenuItem;
@@ -22,6 +23,7 @@ import com.canvamedium.api.ApiService;
 import com.canvamedium.model.Template;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,7 +66,7 @@ public class TemplateListActivity extends AppCompatActivity implements TemplateA
         FloatingActionButton fabAddTemplate = findViewById(R.id.fab_add_template);
 
         // Initialize API service
-        apiService = ApiClient.getClient().create(ApiService.class);
+        apiService = ApiClient.createAuthenticatedService(ApiService.class, this);
 
         // Setup RecyclerView
         recyclerView.setLayoutManager(new GridLayoutManager(this, 2));
@@ -75,13 +77,50 @@ public class TemplateListActivity extends AppCompatActivity implements TemplateA
         swipeRefreshLayout.setOnRefreshListener(this::loadTemplates);
 
         // Setup FAB
-        fabAddTemplate.setOnClickListener(v -> {
-            Intent intent = new Intent(TemplateListActivity.this, TemplateBuilderActivity.class);
-            startActivityForResult(intent, REQUEST_CREATE_TEMPLATE);
-        });
+        fabAddTemplate.setOnClickListener(v -> showTemplateChooserDialog());
 
         // Load templates
         loadTemplates();
+    }
+    
+    /**
+     * Shows a dialog to choose template type when creating a new template.
+     */
+    private void showTemplateChooserDialog() {
+        String[] templateTypes = {
+                "Empty Template", 
+                Template.TEMPLATE_TYPE_BLOG, 
+                Template.TEMPLATE_TYPE_ARTICLE,
+                Template.TEMPLATE_TYPE_PHOTO_GALLERY,
+                Template.TEMPLATE_TYPE_TUTORIAL,
+                Template.TEMPLATE_TYPE_QUOTE
+        };
+        
+        AlertDialog.Builder builder = new AlertDialog.Builder(this)
+                .setTitle("Choose a template type")
+                .setItems(templateTypes, (dialog, which) -> {
+                    String selectedType = templateTypes[which];
+                    createNewTemplate(selectedType);
+                })
+                .setNegativeButton("Cancel", null);
+        
+        builder.create().show();
+    }
+    
+    /**
+     * Creates a new template based on the selected template type.
+     * 
+     * @param templateType The template type to create
+     */
+    private void createNewTemplate(String templateType) {
+        Intent intent = new Intent(this, TemplateBuilderActivity.class);
+        
+        // If not "Empty Template", pass the template type to use
+        if (!"Empty Template".equals(templateType)) {
+            intent.putExtra("template_type", templateType);
+        }
+        
+        startActivityForResult(intent, REQUEST_CREATE_TEMPLATE);
     }
 
     @Override
@@ -123,11 +162,35 @@ public class TemplateListActivity extends AppCompatActivity implements TemplateA
 
                 if (response.isSuccessful() && response.body() != null) {
                     Map<String, Object> result = response.body();
-                    if (result.containsKey("content")) {
-                        List<Template> templates = (List<Template>) result.get("content");
-                        adapter.setTemplates(templates);
-                        
-                        showEmptyView(templates.isEmpty());
+                    // Log the keys in the response for debugging
+                    StringBuilder keyList = new StringBuilder("Response keys: ");
+                    for (String key : result.keySet()) {
+                        keyList.append(key).append(", ");
+                    }
+                    android.util.Log.d("TemplateListActivity", keyList.toString());
+                    
+                    List<Template> templatesList = new ArrayList<>();
+                    
+                    if (result.containsKey("templates")) {
+                        List<?> templatesData = (List<?>) result.get("templates");
+                        for (Object templateObj : templatesData) {
+                            if (templateObj instanceof Map) {
+                                Template template = Template.fromMap((Map<?, ?>) templateObj);
+                                templatesList.add(template);
+                            }
+                        }
+                        adapter.setTemplates(templatesList);
+                        showEmptyView(templatesList.isEmpty());
+                    } else if (result.containsKey("content")) {
+                        List<?> templatesData = (List<?>) result.get("content");
+                        for (Object templateObj : templatesData) {
+                            if (templateObj instanceof Map) {
+                                Template template = Template.fromMap((Map<?, ?>) templateObj);
+                                templatesList.add(template);
+                            }
+                        }
+                        adapter.setTemplates(templatesList);
+                        showEmptyView(templatesList.isEmpty());
                     } else {
                         showEmptyView(true);
                     }
@@ -176,8 +239,18 @@ public class TemplateListActivity extends AppCompatActivity implements TemplateA
 
     @Override
     public void onTemplateClick(Template template) {
-        Intent intent = new Intent(this, TemplateBuilderActivity.class);
-        intent.putExtra("template_id", template.getId());
-        startActivityForResult(intent, REQUEST_EDIT_TEMPLATE);
+        // Check if we came from ArticleEditorActivity
+        if (getIntent().hasExtra("from_article_editor")) {
+            // Return the selected template to ArticleEditorActivity
+            Intent resultIntent = new Intent();
+            resultIntent.putExtra("selected_template", template);
+            setResult(RESULT_OK, resultIntent);
+            finish();
+        } else {
+            // Regular template editing flow
+            Intent intent = new Intent(this, TemplateBuilderActivity.class);
+            intent.putExtra("template_id", template.getId());
+            startActivityForResult(intent, REQUEST_EDIT_TEMPLATE);
+        }
     }
-} 
+}

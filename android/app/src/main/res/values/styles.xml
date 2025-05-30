@@ -17,6 +17,6 @@
     <style name="AppTheme.PopupOverlay" parent="ThemeOverlay.MaterialComponents.Light" />
     
     <!-- Alias styles for backward compatibility -->
-    <style name="Theme.CanvaMedium" parent="AppTheme" />
+    <style name="Theme.CanvaMedium" parent="AppTheme.NoActionBar" />
     <style name="Theme.CanvaMedium.NoActionBar" parent="AppTheme.NoActionBar" />
 </resources> 

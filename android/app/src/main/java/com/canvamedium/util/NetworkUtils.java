@@ -52,6 +52,35 @@ public class NetworkUtils {
     }
 
     /**
+     * Static method to check if the device has an active internet connection
+     *
+     * @param context the application context
+     * @return true if the device has an active internet connection, false otherwise
+     */
+    public static boolean isNetworkConnected(Context context) {
+        ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (connectivityManager == null) {
+            return false;
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Network network = connectivityManager.getActiveNetwork();
+            if (network == null) {
+                return false;
+            }
+
+            NetworkCapabilities capabilities = connectivityManager.getNetworkCapabilities(network);
+            return capabilities != null &&
+                    (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                     capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+                     capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET));
+        } else {
+            NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+            return activeNetworkInfo != null && activeNetworkInfo.isConnected();
+        }
+    }
+
+    /**
      * Check if the device is connected to a Wi-Fi network
      *
      * @return true if the device is connected to a Wi-Fi network, false otherwise

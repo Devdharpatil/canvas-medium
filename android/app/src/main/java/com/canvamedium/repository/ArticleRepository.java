@@ -31,6 +31,7 @@ import okhttp3.ResponseBody;
 
 import java.text.SimpleDateFormat;
 import java.util.Locale;
+import java.util.TimeZone;
 
 /**
  * Repository for handling article data from both local database and remote API.
@@ -301,44 +302,56 @@ public class ArticleRepository {
      * @return the Room ArticleEntity
      */
     private ArticleEntity convertToArticleEntity(Article article) {
-        // Convert JsonObject to String
-        String contentString = null;
-        if (article.getContent() != null) {
-            contentString = article.getContent().toString();
-        }
-        
-        // Convert date strings to Date objects
+        // Parse date strings to Date objects
         Date createdAt = null;
         Date updatedAt = null;
         Date publishedAt = null;
         
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US);
+        dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+        SimpleDateFormat dateFormatWithMillis = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
+        dateFormatWithMillis.setTimeZone(TimeZone.getTimeZone("UTC"));
+        
         try {
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
-            
-            if (article.getCreatedAt() != null && !article.getCreatedAt().isEmpty()) {
-                createdAt = dateFormat.parse(article.getCreatedAt());
+            if (article.getCreatedAt() != null) {
+                try {
+                    createdAt = dateFormat.parse(article.getCreatedAt());
+                } catch (Exception e) {
+                    createdAt = dateFormatWithMillis.parse(article.getCreatedAt());
+                }
             }
             
-            if (article.getUpdatedAt() != null && !article.getUpdatedAt().isEmpty()) {
-                updatedAt = dateFormat.parse(article.getUpdatedAt());
+            if (article.getUpdatedAt() != null) {
+                try {
+                    updatedAt = dateFormat.parse(article.getUpdatedAt());
+                } catch (Exception e) {
+                    updatedAt = dateFormatWithMillis.parse(article.getUpdatedAt());
+                }
             }
             
-            if (article.getPublishedAt() != null && !article.getPublishedAt().isEmpty()) {
-                publishedAt = dateFormat.parse(article.getPublishedAt());
+            if (article.getPublishedAt() != null) {
+                try {
+                    publishedAt = dateFormat.parse(article.getPublishedAt());
+                } catch (Exception e) {
+                    publishedAt = dateFormatWithMillis.parse(article.getPublishedAt());
+                }
             }
         } catch (Exception e) {
             Log.e(TAG, "Error parsing dates", e);
         }
         
-        if (createdAt == null) {
-            createdAt = new Date();
+        // Current time as fallback for dates
+        long currentTime = System.currentTimeMillis();
+        if (createdAt == null) createdAt = new Date(currentTime);
+        if (updatedAt == null) updatedAt = new Date(currentTime);
+        
+        // Convert content from JsonObject to string
+        String contentString = "";
+        if (article.getContent() != null) {
+            contentString = article.getContent().toString();
         }
         
-        if (updatedAt == null) {
-            updatedAt = new Date();
-        }
-        
-        // Convert List<Tag> to List<String>
+        // Convert tags list to strings
         List<String> tagStrings = new ArrayList<>();
         if (article.getTags() != null) {
             for (Tag tag : article.getTags()) {
@@ -349,22 +362,22 @@ public class ArticleRepository {
         }
         
         return new ArticleEntity(
-                article.getId(),
-                article.getTitle(),
-                article.getPreviewText(),
-                contentString,
-                article.getThumbnailUrl(),
-                article.getAuthor() != null ? article.getAuthor().getId() : null,
-                article.getAuthor() != null ? article.getAuthor().getName() : null,
-                createdAt,
-                updatedAt,
-                publishedAt,
-                article.getStatus(),
-                article.getTemplateId(),
-                article.getCategory() != null ? article.getCategory().getId() : null,
-                article.getCategory() != null ? article.getCategory().getName() : null,
-                tagStrings,
-                article.isBookmarked()
+            article.getId() > 0 ? article.getId() : generateLocalId(), // Use existing ID or generate one
+            article.getTitle(),
+            article.getPreviewText(),
+            contentString,
+            article.getThumbnailUrl(),
+            article.getAuthor() != null ? article.getAuthor().getId() : null,
+            article.getAuthor() != null ? article.getAuthor().getName() : null,
+            createdAt,
+            updatedAt,
+            publishedAt,
+            article.getStatus(),
+            article.getTemplateId(),
+            article.getCategory() != null ? article.getCategory().getId() : null,
+            article.getCategory() != null ? article.getCategory().getName() : null,
+            tagStrings,
+            article.isBookmarked()
         );
     }
 
@@ -380,5 +393,437 @@ public class ArticleRepository {
             articleEntities.add(convertToArticleEntity(article));
         }
         return articleEntities;
+    }
+
+    /**
+     * Get all articles with a callback for immediate use
+     *
+     * @param callback The callback to receive articles or error
+     */
+    public void getAllArticles(ArticleCallback callback) {
+        if (networkUtils.isOnline()) {
+            // Try to get from API first
+            apiService.getAllArticles().enqueue(new Callback<List<Article>>() {
+                @Override
+                public void onResponse(Call<List<Article>> call, Response<List<Article>> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        // Save to database and return articles
+                        List<ArticleEntity> entities = convertToArticleEntities(response.body());
+                        articleDao.insertArticleList(entities)
+                                .subscribeOn(Schedulers.io())
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribe(() -> {
+                                    // Convert back to model objects for the UI
+                                    List<Article> articles = new ArrayList<>();
+                                    for (ArticleEntity entity : entities) {
+                                        articles.add(convertToArticle(entity));
+                                    }
+                                    callback.onResult(articles, null);
+                                }, throwable -> {
+                                    Log.e(TAG, "Error saving articles to database", throwable);
+                                    callback.onResult(null, "Error saving articles to database");
+                                });
+                    } else {
+                        // Fall back to database
+                        getArticlesFromDatabase(callback);
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<List<Article>> call, Throwable t) {
+                    Log.e(TAG, "Error fetching articles from API", t);
+                    // Fall back to database
+                    getArticlesFromDatabase(callback);
+                }
+            });
+        } else {
+            // Offline mode, get from database
+            getArticlesFromDatabase(callback);
+        }
+    }
+
+    /**
+     * Get articles from the local database with a callback
+     *
+     * @param callback The callback to receive articles or error
+     */
+    public void getArticlesFromDatabase(ArticleCallback callback) {
+        articleDao.getAllArticlesAsList()
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(articleEntities -> {
+                    List<Article> articles = new ArrayList<>();
+                    for (ArticleEntity entity : articleEntities) {
+                        articles.add(convertToArticle(entity));
+                    }
+                    callback.onResult(articles, null);
+                }, throwable -> {
+                    Log.e(TAG, "Error loading articles from database", throwable);
+                    callback.onResult(null, "Error loading articles from database");
+                });
+    }
+
+    /**
+     * Convert an ArticleEntity to an Article model object
+     *
+     * @param entity The entity to convert
+     * @return The Article model object
+     */
+    private Article convertToArticle(ArticleEntity entity) {
+        Article article = new Article();
+        article.setId(entity.getId());
+        article.setTitle(entity.getTitle());
+        
+        // Convert content string to JsonObject
+        try {
+            com.google.gson.JsonObject content = new com.google.gson.JsonParser()
+                    .parse(entity.getContent()).getAsJsonObject();
+            article.setContent(content);
+        } catch (Exception e) {
+            Log.e(TAG, "Error parsing article content", e);
+            article.setContent(new com.google.gson.JsonObject());
+        }
+        
+        article.setPreviewText(entity.getPreviewText());
+        article.setThumbnailUrl(entity.getThumbnailUrl());
+        
+        // Null check for templateId
+        Long templateId = entity.getTemplateId();
+        article.setTemplateId(templateId != null ? templateId : -1L);
+        
+        article.setStatus(entity.getStatus());
+        
+        // Convert Date objects to strings
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
+        if (entity.getPublishedAt() != null) {
+            article.setPublishedAt(dateFormat.format(entity.getPublishedAt()));
+        }
+        if (entity.getCreatedAt() != null) {
+            article.setCreatedAt(dateFormat.format(entity.getCreatedAt()));
+        }
+        if (entity.getUpdatedAt() != null) {
+            article.setUpdatedAt(dateFormat.format(entity.getUpdatedAt()));
+        }
+        
+        // Featured property - assume true for demo articles if not present
+        article.setFeatured(true);
+        article.setBookmarked(entity.isBookmarked());
+        article.setAuthorName(entity.getAuthorName());
+        
+        // Handle category with null check
+        Long categoryId = entity.getCategoryId();
+        if (categoryId != null && categoryId > 0) {
+            com.canvamedium.model.Category category = new com.canvamedium.model.Category();
+            category.setId(categoryId);
+            category.setName(entity.getCategoryName());
+            article.setCategory(category);
+        }
+        
+        // Handle tags - convert list of strings to Tag objects
+        if (entity.getTags() != null && !entity.getTags().isEmpty()) {
+            List<Tag> tags = new ArrayList<>();
+            for (String name : entity.getTags()) {
+                if (name != null) {
+                    Tag tag = new Tag();
+                    tag.setName(name.trim());
+                    tags.add(tag);
+                }
+            }
+            article.setTags(tags);
+        }
+        
+        return article;
+    }
+
+    /**
+     * Insert an article into the database
+     *
+     * @param article The article entity to insert
+     * @return A Completable that completes when the operation is done
+     */
+    public Completable insertArticle(ArticleEntity article) {
+        return articleDao.insertArticles(article)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread());
+    }
+
+    /**
+     * Insert or update an article in the local database
+     * 
+     * @param article The Article model to save
+     * @return Completable operation
+     */
+    public Completable insertOrUpdateArticle(Article article) {
+        // Convert model to entity
+        ArticleEntity entity = convertToArticleEntity(article);
+        return insertArticle(entity);
+    }
+
+    /**
+     * Callback interface for article operations
+     */
+    public interface ArticleCallback {
+        /**
+         * Called when the operation completes
+         * 
+         * @param articles The list of articles, or null if there was an error
+         * @param errorMsg The error message, or null if the operation succeeded
+         */
+        void onResult(List<Article> articles, String errorMsg);
+    }
+
+    /**
+     * Generate a local ID for articles created locally
+     * 
+     * @return A unique local ID (negative to avoid conflicts with server IDs)
+     */
+    private long generateLocalId() {
+        // Use negative IDs for local articles to avoid conflicts with server IDs
+        return -System.currentTimeMillis();
+    }
+
+    /**
+     * Get articles by category with a callback for immediate use
+     *
+     * @param categoryId The ID of the category to filter by
+     * @param callback The callback to receive articles or error
+     */
+    public void getArticlesByCategory(long categoryId, ArticleCallback callback) {
+        if (networkUtils.isOnline()) {
+            // Try to get from API first
+            apiService.getArticlesByCategory(categoryId).enqueue(new retrofit2.Callback<List<Article>>() {
+                @Override
+                public void onResponse(retrofit2.Call<List<Article>> call, retrofit2.Response<List<Article>> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        // Save to database and return articles
+                        List<ArticleEntity> entities = convertToArticleEntities(response.body());
+                        articleDao.insertArticleList(entities)
+                                .subscribeOn(Schedulers.io())
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribe(() -> {
+                                    // Return the original model objects
+                                    callback.onResult(response.body(), null);
+                                }, throwable -> {
+                                    Log.e(TAG, "Error saving category articles to database", throwable);
+                                    callback.onResult(null, "Error saving category articles to database");
+                                });
+                    } else {
+                        // Fall back to database
+                        getArticlesByCategoryFromDatabase(categoryId, callback);
+                    }
+                }
+
+                @Override
+                public void onFailure(retrofit2.Call<List<Article>> call, Throwable t) {
+                    Log.e(TAG, "Error fetching articles by category from API", t);
+                    // Fall back to database
+                    getArticlesByCategoryFromDatabase(categoryId, callback);
+                }
+            });
+        } else {
+            // Offline mode, get from database
+            getArticlesByCategoryFromDatabase(categoryId, callback);
+        }
+    }
+
+    /**
+     * Get articles by category from the local database with a callback
+     *
+     * @param categoryId The ID of the category to filter by
+     * @param callback The callback to receive articles or error
+     */
+    private void getArticlesByCategoryFromDatabase(long categoryId, ArticleCallback callback) {
+        articleDao.getArticlesByCategoryAsList(categoryId)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(articleEntities -> {
+                    List<Article> articles = new ArrayList<>();
+                    for (ArticleEntity entity : articleEntities) {
+                        articles.add(convertToArticle(entity));
+                    }
+                    callback.onResult(articles, null);
+                }, throwable -> {
+                    Log.e(TAG, "Error loading category articles from database", throwable);
+                    callback.onResult(null, "Error loading category articles from database");
+                });
+    }
+    
+    /**
+     * Search articles with a callback for immediate use
+     * 
+     * @param query The search query
+     * @param callback The callback to receive search results or error
+     */
+    public void searchArticles(String query, ArticleCallback callback) {
+        if (networkUtils.isOnline()) {
+            // Try to get from API first
+            apiService.searchArticles(query).enqueue(new retrofit2.Callback<List<Article>>() {
+                @Override
+                public void onResponse(retrofit2.Call<List<Article>> call, retrofit2.Response<List<Article>> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        callback.onResult(response.body(), null);
+                    } else {
+                        // Fall back to database
+                        searchArticlesFromDatabase(query, callback);
+                    }
+                }
+
+                @Override
+                public void onFailure(retrofit2.Call<List<Article>> call, Throwable t) {
+                    Log.e(TAG, "Error searching articles from API", t);
+                    // Fall back to database
+                    searchArticlesFromDatabase(query, callback);
+                }
+            });
+        } else {
+            // Offline mode, search local database
+            searchArticlesFromDatabase(query, callback);
+        }
+    }
+
+    /**
+     * Search articles from the local database with a callback
+     * 
+     * @param query The search query
+     * @param callback The callback to receive search results or error
+     */
+    private void searchArticlesFromDatabase(String query, ArticleCallback callback) {
+        executor.execute(() -> {
+            try {
+                List<ArticleEntity> articleEntities = articleDao.searchArticlesDirect("%" + query + "%");
+                List<Article> articles = new ArrayList<>();
+                for (ArticleEntity entity : articleEntities) {
+                    articles.add(convertToArticle(entity));
+                }
+                callback.onResult(articles, null);
+            } catch (Exception e) {
+                Log.e(TAG, "Error searching articles from database", e);
+                callback.onResult(null, "Error searching articles: " + e.getMessage());
+            }
+        });
+    }
+    
+    /**
+     * Get articles sorted by date (newest first)
+     * 
+     * @param callback The callback to be invoked when the operation completes
+     */
+    public void getArticlesSortedByDate(ArticleCallback callback) {
+        if (networkUtils.isOnline()) {
+            Call<List<Article>> call = apiService.getArticlesSortedByDate();
+            call.enqueue(new Callback<List<Article>>() {
+                @Override
+                public void onResponse(Call<List<Article>> call, Response<List<Article>> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        List<Article> articles = response.body();
+                        callback.onResult(articles, null);
+                        
+                        // Save to database in background
+                        executor.execute(() -> {
+                            try {
+                                List<ArticleEntity> articleEntities = convertToArticleEntities(articles);
+                                articleDao.insertArticleList(articleEntities).blockingAwait();
+                            } catch (Exception e) {
+                                Log.e(TAG, "Error saving date-sorted articles to database", e);
+                            }
+                        });
+                    } else {
+                        getArticlesSortedByDateFromDatabase(callback);
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<List<Article>> call, Throwable t) {
+                    Log.e(TAG, "Error getting articles sorted by date from API", t);
+                    getArticlesSortedByDateFromDatabase(callback);
+                }
+            });
+        } else {
+            getArticlesSortedByDateFromDatabase(callback);
+        }
+    }
+
+    /**
+     * Get articles sorted by date from local database
+     * 
+     * @param callback The callback to be invoked when the operation completes
+     */
+    private void getArticlesSortedByDateFromDatabase(ArticleCallback callback) {
+        executor.execute(() -> {
+            try {
+                List<ArticleEntity> articleEntities = articleDao.getArticlesSortedByDate();
+                List<Article> articles = new ArrayList<>();
+                for (ArticleEntity entity : articleEntities) {
+                    articles.add(convertToArticle(entity));
+                }
+                callback.onResult(articles, null);
+            } catch (Exception e) {
+                Log.e(TAG, "Error getting articles sorted by date from database", e);
+                callback.onResult(null, "Error getting articles: " + e.getMessage());
+            }
+        });
+    }
+    
+    /**
+     * Get articles sorted by popularity
+     * 
+     * @param callback The callback to be invoked when the operation completes
+     */
+    public void getArticlesSortedByPopularity(ArticleCallback callback) {
+        if (networkUtils.isOnline()) {
+            Call<List<Article>> call = apiService.getArticlesSortedByPopularity();
+            call.enqueue(new Callback<List<Article>>() {
+                @Override
+                public void onResponse(Call<List<Article>> call, Response<List<Article>> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        List<Article> articles = response.body();
+                        callback.onResult(articles, null);
+                        
+                        // Save to database in background
+                        executor.execute(() -> {
+                            try {
+                                List<ArticleEntity> articleEntities = convertToArticleEntities(articles);
+                                articleDao.insertArticleList(articleEntities).blockingAwait();
+                            } catch (Exception e) {
+                                Log.e(TAG, "Error saving popularity-sorted articles to database", e);
+                            }
+                        });
+                    } else {
+                        getArticlesSortedByPopularityFromDatabase(callback);
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<List<Article>> call, Throwable t) {
+                    Log.e(TAG, "Error getting articles sorted by popularity from API", t);
+                    getArticlesSortedByPopularityFromDatabase(callback);
+                }
+            });
+        } else {
+            getArticlesSortedByPopularityFromDatabase(callback);
+        }
+    }
+
+    /**
+     * Get articles sorted by popularity from local database
+     * 
+     * @param callback The callback to be invoked when the operation completes
+     */
+    private void getArticlesSortedByPopularityFromDatabase(ArticleCallback callback) {
+        executor.execute(() -> {
+            try {
+                // In a real app, we would keep a popularity metric or use view/like counts
+                // For now, just return all articles as a fallback
+                List<ArticleEntity> articleEntities = articleDao.getAllArticlesDirect();
+                List<Article> articles = new ArrayList<>();
+                for (ArticleEntity entity : articleEntities) {
+                    articles.add(convertToArticle(entity));
+                }
+                callback.onResult(articles, null);
+            } catch (Exception e) {
+                Log.e(TAG, "Error getting articles sorted by popularity from database", e);
+                callback.onResult(null, "Error getting articles: " + e.getMessage());
+            }
+        });
     }
 } 

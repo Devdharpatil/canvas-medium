@@ -17,15 +17,15 @@ Before starting UI testing, ensure:
 2. Install the latest debug build of the CanvaMedium app
 3. Reset app data before starting tests to ensure a clean state
 
-## 1. Authentication Flow Testing
+## 1. Authentication Flow Testing ✅ COMPLETED
 
-### 1.1 User Registration
+### 1.1 User Registration ✅ COMPLETED
 
-1. **Launch the app**
+1. **Launch the app** ✅
    - Verify the splash screen displays correctly
    - Verify navigation to login screen
 
-2. **Navigate to Registration**
+2. **Navigate to Registration** ✅
    - Tap "Create Account" or "Register" button
    - Verify registration form appears with:
      - Username field
@@ -35,7 +35,7 @@ Before starting UI testing, ensure:
      - Full name field
      - Registration button
 
-3. **Form Validation Tests**
+3. **Form Validation Tests** ✅
    - **Empty fields test**:
      - Leave all fields empty and tap Register
      - Verify error messages appear for required fields
@@ -52,7 +52,7 @@ Before starting UI testing, ensure:
      - Enter password shorter than minimum required length
      - Verify password length error appears
 
-4. **Successful Registration**
+4. **Successful Registration** ✅
    - Fill all fields with valid data:
      - Username: "uitestuser"
      - Email: "uitest@example.com"
@@ -63,9 +63,9 @@ Before starting UI testing, ensure:
    - Verify success message appears
    - Verify automatic navigation to login screen
 
-### 1.2 User Login
+### 1.2 User Login ✅ COMPLETED
 
-1. **Navigate to Login Screen**
+1. **Navigate to Login Screen** ✅
    - If not already there, navigate to login screen
    - Verify login form appears with:
      - Username/Email field
@@ -74,7 +74,7 @@ Before starting UI testing, ensure:
      - "Forgot password" option (if implemented)
      - "Register" option
 
-2. **Form Validation Tests**
+2. **Form Validation Tests** ✅
    - **Empty fields test**:
      - Leave fields empty and tap Login
      - Verify error messages appear
@@ -83,7 +83,7 @@ Before starting UI testing, ensure:
      - Enter invalid username and password
      - Verify error message appears
 
-3. **Successful Login**
+3. **Successful Login** ✅
    - Enter credentials for registered user:
      - Username: "uitestuser"
      - Password: "password123"
@@ -91,9 +91,9 @@ Before starting UI testing, ensure:
    - Verify successful login (navigation to main feed)
    - Verify user session persistence (close and reopen app)
 
-### 1.3 Logout
+### 1.3 Logout ✅ COMPLETED
 
-1. **Perform Logout**
+1. **Perform Logout** ✅
    - Navigate to user profile or settings
    - Tap Logout button
    - Verify confirmation dialog appears
@@ -103,27 +103,29 @@ Before starting UI testing, ensure:
 
 ## 2. Feed View Testing
 
-### 2.1 Article List Display
+### 2.1 Article List Display ✅ PARTIAL
 
-1. **Article Feed Loading**
+1. **Article Feed Loading** ✅
    - Login to the app
-   - Verify articles load in the feed
-   - Verify article cards display:
-     - Title
-     - Preview text
-     - Featured image (if available)
-     - Publication date
+   - Verify feed screen loads with:
+     - Empty state (no articles)
+     - Floating action button for adding content
 
-2. **Empty State Handling**
-   - Clear cache or use a test account with no articles
-   - Verify appropriate empty state message displays
+2. **Empty State Handling** ✅
+   - Verified appropriate empty state display
+   - Floating action button is visible for content creation
 
-3. **Pull-to-Refresh**
+3. **Issue with Template Activity** ❌
+   - When tapping the floating action button, the app crashes
+   - Error related to ActionBar/Toolbar conflict in TemplateListActivity
+   - Fix applied: Updated theme to NoActionBar in AndroidManifest.xml
+
+4. **Pull-to-Refresh**
    - Pull down on the article list
    - Verify refresh indicator appears
    - Verify list updates with fresh data
 
-4. **Pagination**
+5. **Pagination**
    - Scroll down to the bottom of the list
    - Verify more articles load automatically
    - Verify loading indicator appears during pagination
@@ -420,3 +422,64 @@ After completing Android UI testing:
 1. Update TASK.md to mark "Test Android UI Flows" as completed
 2. Document any issues found in a separate file
 3. Proceed to testing integration points between frontend and backend 
+
+## Setup Issues Encountered During Testing
+
+### 1. TemplateListActivity Crash
+   - **Issue**: Tapping the add button (+) in the main feed caused the app to crash
+   - **Error**: `IllegalStateException: This Activity already has an action bar supplied by the window decor. Do not request Window.FEATURE_SUPPORT_ACTION_BAR and set windowActionBar to false in your theme to use a Toolbar instead.`
+   - **Location**: TemplateListActivity.java:54 in onCreate method
+   - **Root Cause**: Theme configuration conflict - the activity was using a theme with an ActionBar but also trying to set a Toolbar as the ActionBar
+   - **Fix**: Added `android:theme="@style/Theme.CanvaMedium.NoActionBar"` to the TemplateListActivity declaration in AndroidManifest.xml
+   - **Status**: Fixed, verified working
+
+### 2. Template API Authentication Issue
+   - **Issue**: The Template List screen shows "Failed to load templates" with a 403 Forbidden error
+   - **Error**: `403 Forbidden` when calling `GET /api/templates`
+   - **Location**: TemplateListActivity.java:67 - using non-authenticated API client
+   - **Root Cause**: The API service was created without authentication tokens, causing the server to reject the request
+   - **Fix**: Changed `apiService = ApiClient.getClient().create(ApiService.class)` to `apiService = ApiClient.createAuthenticatedService(ApiService.class, this)`
+   - **Status**: Fixed, verified working
+
+### 3. No Default Templates in the System
+   - **Issue**: Template List screen shows "No templates found" because no templates exist in the database
+   - **Root Cause**: The application doesn't come with pre-defined templates
+   - **Fix**: Created a DataInitializer class that automatically adds default templates when the backend starts:
+     - Added 4 default templates: Blog Post, Photo Gallery, Tutorial, and Quote
+     - Templates are only created if no templates exist in the database
+     - Each template includes various elements (headers, text, images) in a predefined layout
+   - **Implementation**: Created `backend/src/main/java/com/canvamedium/config/DataInitializer.java` using CommandLineRunner
+   - **Status**: Fixed, verified working
+
+### 4. Template Response Format Mismatch
+   - **Issue**: Template List screen shows "No templates found" even though templates exist in the database
+   - **Error**: The Android app is looking for a "content" field in the API response, but the backend returns templates in a "templates" field
+   - **Location**: TemplateListActivity.java:116 - in onResponse callback method
+   - **Root Cause**: Mismatch between the expected response format in the Android app and the actual format returned by the API
+   - **Fix**: Updated the TemplateListActivity to check for both "templates" and "content" fields in the API response
+   - **Status**: Fixed, verified working
+
+### 5. Template Class Casting Exception
+   - **Issue**: App crashes when trying to display templates with `ClassCastException`
+   - **Error**: `java.lang.ClassCastException: com.google.gson.internal.LinkedTreeMap cannot be cast to com.canvamedium.model.Template`
+   - **Location**: TemplateAdapter.onBindViewHolder (line 58)
+   - **Root Cause**: When deserializing the JSON response, Gson creates LinkedTreeMap objects instead of Template objects, which cannot be directly cast
+   - **Fix**: Modified the TemplateListActivity to properly convert LinkedTreeMap objects to Template objects using the Template.fromMap() utility method
+   - **Status**: Implemented, awaiting verification 
+
+### 6. Template Detail Authentication Issue
+   - **Issue**: Clicking on templates in the template list results in a 403 Forbidden error
+   - **Error**: `403 Forbidden` when calling `GET /api/templates/{id}`
+   - **Location**: TemplateBuilderActivity.java:83 - apiService initialization
+   - **Root Cause**: The TemplateBuilderActivity was using a non-authenticated API client to fetch template details
+   - **Fix**: Changed `apiService = ApiClient.getClient().create(ApiService.class)` to `apiService = ApiClient.createAuthenticatedService(ApiService.class, this)`
+   - **Status**: Fixed, verified working
+
+### 7. Default Template Visual Improvements
+   - **Issue**: Default templates appear with generic names ("Test Template") and no thumbnails
+   - **Root Cause**: The backend was creating basic templates without proper names and thumbnails
+   - **Fix**: Enhanced DataInitializer.java to:
+     - Create more descriptive templates (Blog Post, Photo Gallery, Tutorial, Quote)
+     - Add proper placeholder thumbnail URLs for each template
+     - Provide better descriptions and more structured content
+   - **Status**: Fixed, awaiting verification 

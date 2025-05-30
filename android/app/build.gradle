@@ -21,6 +21,9 @@ android {
         }
     }
     buildTypes {
+        debug {
+            buildConfigField "String", "BASE_URL", "\"http://172.23.33.137:8080/\""
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
@@ -36,6 +39,7 @@ android {
     }
     buildFeatures {
         dataBinding true
+        buildConfig true
     }
     
     // ADD THIS SECTION TO RESOLVE KOTLIN CONFLICTS
