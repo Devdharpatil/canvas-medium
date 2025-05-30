@@ -8,6 +8,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.ImageView;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -30,7 +31,6 @@ import com.canvamedium.model.Article;
 import com.canvamedium.sync.SyncManager;
 import com.canvamedium.util.NetworkUtils;
 import com.canvamedium.viewmodel.ArticleViewModel;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -47,7 +47,6 @@ import java.util.Locale;
 public class MainActivity extends AppCompatActivity implements ArticleAdapter.ArticleClickListener {
     
     private RecyclerView recyclerView;
-    private FloatingActionButton fabAdd;
     private SwipeRefreshLayout swipeRefreshLayout;
     private ArticleAdapter articleAdapter;
     private ArticleViewModel articleViewModel;
@@ -61,6 +60,14 @@ public class MainActivity extends AppCompatActivity implements ArticleAdapter.Ar
     private SyncManager syncManager;
     private long categoryId = -1;
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
+    
+    // Toolbar components
+    private ImageView appLogo;
+    private android.widget.ImageButton searchButton;
+    private android.widget.ImageButton menuButton;
+    
+    // Bottom navigation
+    private com.google.android.material.bottomnavigation.BottomNavigationView bottomNavigationView;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -80,6 +87,12 @@ public class MainActivity extends AppCompatActivity implements ArticleAdapter.Ar
         networkUtils = new NetworkUtils(this);
         syncManager = ((CanvaMediumApplication) getApplication()).getSyncManager();
         
+        // Set up toolbar buttons
+        setupToolbarButtons();
+        
+        // Set up bottom navigation
+        setupBottomNavigation();
+        
         // Check if coming from category selection
         if (getIntent().hasExtra("CATEGORY_ID")) {
             categoryId = getIntent().getLongExtra("CATEGORY_ID", -1);
@@ -92,12 +105,6 @@ public class MainActivity extends AppCompatActivity implements ArticleAdapter.Ar
         // Set up SwipeRefreshLayout
         swipeRefreshLayout.setOnRefreshListener(this::refreshArticles);
         
-        // Set up FAB click listener
-        fabAdd.setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, ArticleEditorActivity.class);
-            startActivity(intent);
-        });
-        
         // Set up error view retry button
         findViewById(R.id.buttonRetry).setOnClickListener(v -> refreshArticles());
         
@@ -106,6 +113,24 @@ public class MainActivity extends AppCompatActivity implements ArticleAdapter.Ar
         
         // Show offline indicator if needed
         updateOfflineIndicator();
+    }
+    
+    /**
+     * Set up toolbar button click listeners
+     */
+    private void setupToolbarButtons() {
+        appLogo = findViewById(R.id.toolbar_app_logo);
+        searchButton = findViewById(R.id.toolbar_search_icon);
+        menuButton = findViewById(R.id.toolbar_menu_icon);
+        
+        searchButton.setOnClickListener(v -> {
+            Intent intent = new Intent(this, SearchActivity.class);
+            startActivity(intent);
+        });
+        
+        menuButton.setOnClickListener(v -> {
+            openOptionsMenu();
+        });
     }
     
     @Override
@@ -173,7 +198,6 @@ public class MainActivity extends AppCompatActivity implements ArticleAdapter.Ar
      */
     private void initializeViews() {
         recyclerView = findViewById(R.id.recyclerView);
-        fabAdd = findViewById(R.id.fabAdd);
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
         emptyView = findViewById(R.id.emptyView);
         errorView = findViewById(R.id.errorView);
@@ -578,5 +602,51 @@ public class MainActivity extends AppCompatActivity implements ArticleAdapter.Ar
                         Snackbar.make(recyclerView, "Failed to update bookmark", Snackbar.LENGTH_SHORT).show();
                     }
                 });
+    }
+    
+    /**
+     * Set up bottom navigation
+     */
+    private void setupBottomNavigation() {
+        bottomNavigationView = findViewById(R.id.bottom_navigation);
+        
+        bottomNavigationView.setOnItemSelectedListener(item -> {
+            int itemId = item.getItemId();
+            Log.d("MainActivity", "Bottom navigation item selected: " + item.getTitle());
+            
+            if (itemId == R.id.nav_home) {
+                // Already on home, just refresh
+                refreshArticles();
+                return true;
+            } else if (itemId == R.id.nav_discover) {
+                // Navigate to discover/community
+                // TODO: Refactor to use Fragments for smoother in-app navigation instead of starting new Activities for tabs.
+                Intent intent = new Intent(this, CategoryBrowseActivity.class);
+                startActivity(intent);
+                return true;
+            } else if (itemId == R.id.nav_create) {
+                // Navigate to create
+                Intent intent = new Intent(this, ArticleEditorActivity.class);
+                startActivity(intent);
+                return true;
+            } else if (itemId == R.id.nav_templates) {
+                // Navigate to templates
+                // TODO: Refactor to use Fragments for smoother in-app navigation instead of starting new Activities for tabs.
+                Intent intent = new Intent(this, TemplateListActivity.class);
+                startActivity(intent);
+                return true;
+            } else if (itemId == R.id.nav_profile_bottom) {
+                // Navigate to profile
+                // TODO: Refactor to use Fragments for smoother in-app navigation instead of starting new Activities for tabs.
+                Intent intent = new Intent(this, UserProfileActivity.class);
+                startActivity(intent);
+                return true;
+            }
+            
+            return false;
+        });
+        
+        // Set the initial selected item
+        bottomNavigationView.setSelectedItemId(R.id.nav_home);
     }
 } 

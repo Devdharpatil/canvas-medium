@@ -1,20 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#FF5722</color>
-    <color name="colorPrimaryDark">#E64A19</color>
+    <!-- Primary Palette -->
+    <color name="app_primary">#00796B</color>
+    <color name="app_primary_dark">#004D40</color>
+    
+    <!-- Accent Palette -->
+    <color name="app_accent">#FF8A65</color>
+    
+    <!-- Neutral & Text Palette -->
+    <color name="app_white">#FFFFFF</color>
+    <color name="app_black">#000000</color>
+    <color name="app_text_primary">#212121</color>
+    <color name="app_text_secondary">#757575</color>
+    <color name="app_background_light">#F7F9FA</color>
+    <color name="app_surface_light">#FFFFFF</color>
+    <color name="app_divider_light">#E0E0E0</color>
+    
+    <!-- Semantic Colors -->
+    <color name="app_error">#D32F2F</color>
+    <color name="app_success">#388E3C</color>
+    
+    <!-- Legacy colors (kept for backward compatibility) -->
+    <color name="colorPrimary">@color/app_primary</color>
+    <color name="colorPrimaryDark">@color/app_primary_dark</color>
     <color name="colorPrimaryLight">#FFCCBC</color>
-    <color name="colorAccent">#FFC107</color>
-    <color name="colorWhite">#FFFFFF</color>
-    <color name="colorBlack">#000000</color>
-    <color name="colorGray">#757575</color>
+    <color name="colorAccent">@color/app_accent</color>
+    <color name="colorWhite">@color/app_white</color>
+    <color name="colorBlack">@color/app_black</color>
+    <color name="colorGray">@color/app_text_secondary</color>
     <color name="colorLightGray">#EEEEEE</color>
-    <color name="colorBackground">#FFFFFF</color>
-    <color name="colorTextPrimary">#212121</color>
-    <color name="colorTextSecondary">#757575</color>
-    <color name="colorDivider">#BDBDBD</color>
-    <color name="white">#FFFFFF</color>
-    <color name="black">#000000</color>
-    <color name="gray">#757575</color>
+    <color name="colorBackground">@color/app_background_light</color>
+    <color name="colorTextPrimary">@color/app_text_primary</color>
+    <color name="colorTextSecondary">@color/app_text_secondary</color>
+    <color name="colorDivider">@color/app_divider_light</color>
+    <color name="white">@color/app_white</color>
+    <color name="black">@color/app_black</color>
+    <color name="gray">@color/app_text_secondary</color>
     <color name="light_gray">#DDDDDD</color>
-    <color name="error_red">#B71C1C</color>
+    <color name="error_red">@color/app_error</color>
 </resources> 

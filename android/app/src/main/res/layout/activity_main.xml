@@ -12,65 +12,75 @@
         android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@android:color/white">
+        android:background="?attr/colorSurface"
+        app:elevation="0dp">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
+            android:background="@android:color/transparent"
+            android:layoutAnimation="@anim/layout_animation_fall_down"
             app:layout_scrollFlags="scroll|enterAlways|snap">
 
+            <ImageView
+                android:id="@+id/toolbar_app_logo"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="16dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:contentDescription="@string/app_logo_description"
+                android:focusable="true"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:srcCompat="@drawable/ic_app_logo_placeholder" />
+
             <TextView
-                android:id="@+id/textAppName"
+                android:id="@+id/toolbar_app_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:fontFamily="sans-serif-medium"
                 android:text="@string/app_name"
-                android:textColor="@color/colorPrimary"
-                android:textSize="22sp"
-                android:textStyle="bold"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="20sp"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toStartOf="@+id/toolbar_search_icon"
+                app:layout_constraintHorizontal_bias="0.5"
+                app:layout_constraintStart_toEndOf="@id/toolbar_app_logo"
                 app:layout_constraintTop_toTopOf="parent" />
 
-            <androidx.appcompat.widget.SearchView
-                android:id="@+id/searchView"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_marginEnd="8dp"
-                android:background="@android:color/transparent"
-                app:iconifiedByDefault="true"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toStartOf="@+id/menuButton"
-                app:layout_constraintTop_toTopOf="parent"
-                app:queryHint="Search articles..."
-                app:searchIcon="@drawable/ic_search" />
-
             <ImageButton
-                android:id="@+id/menuButton"
+                android:id="@+id/toolbar_search_icon"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:layout_marginEnd="8dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Menu"
+                android:contentDescription="@string/toolbar_search_description"
                 android:padding="8dp"
-                android:src="@drawable/ic_menu"
+                android:src="@drawable/ic_search_24"
+                android:tint="?attr/colorOnSurface"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@+id/toolbar_menu_icon"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <ImageButton
+                android:id="@+id/toolbar_menu_icon"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginEnd="16dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/toolbar_menu_description"
+                android:padding="8dp"
+                android:src="@drawable/ic_more_vert_24"
+                android:tint="?attr/colorOnSurface"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
-
-        <com.google.android.material.tabs.TabLayout
-            android:id="@+id/tabLayout"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@android:color/white"
-            app:tabGravity="start"
-            app:tabIndicatorColor="@color/colorPrimary"
-            app:tabIndicatorHeight="3dp"
-            app:tabMode="scrollable"
-            app:tabSelectedTextColor="@color/colorPrimary"
-            app:tabTextColor="#757575" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <!-- Offline Indicator Banner -->
@@ -87,21 +97,35 @@
         app:layout_behavior="@string/appbar_scrolling_view_behavior"
         tools:visibility="visible" />
 
-    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-        android:id="@+id/swipeRefreshLayout"
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/main_nested_scroll_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:fillViewport="true"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/recyclerView"
+        <LinearLayout
+            android:id="@+id/main_content_container"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:clipToPadding="false"
-            android:paddingTop="8dp"
-            android:paddingBottom="80dp" />
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
 
-    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+            <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+                android:id="@+id/swipeRefreshLayout"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recyclerView"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clipToPadding="false"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="0dp" />
+
+            </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
     <!-- Empty State View -->
     <LinearLayout
@@ -217,17 +241,16 @@
             android:textSize="14sp" />
     </LinearLayout>
 
-    <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
-        android:id="@+id/fabAdd"
-        android:layout_width="wrap_content"
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottom_navigation"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_margin="16dp"
-        android:contentDescription="Create new article"
-        android:text="Create"
-        android:textColor="@android:color/white"
-        app:icon="@drawable/ic_add"
-        app:iconTint="@android:color/white"
-        app:backgroundTint="@color/colorPrimary" />
+        android:layout_gravity="bottom"
+        android:background="?attr/colorSurface"
+        app:menu="@menu/bottom_nav_menu"
+        app:labelVisibilityMode="labeled"
+        app:itemIconTint="@color/bottom_nav_item_color_selector"
+        app:itemTextColor="@color/bottom_nav_item_color_selector"
+        app:elevation="4dp" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout> 

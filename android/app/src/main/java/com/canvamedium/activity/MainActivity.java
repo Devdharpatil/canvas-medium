@@ -9,6 +9,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -31,8 +32,10 @@ import com.canvamedium.util.AuthManager;
 import com.canvamedium.util.DemoDataGenerator;
 import com.canvamedium.util.NetworkUtils;
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
+import com.google.android.material.imageview.ShapeableImageView;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.tabs.TabLayout;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,13 +50,14 @@ public class MainActivity extends AppCompatActivity implements ArticleAdapter.Ar
     private RecyclerView recyclerView;
     private ArticleAdapter adapter;
     private SwipeRefreshLayout swipeRefreshLayout;
-    private ExtendedFloatingActionButton fabAdd;
     private View emptyView;
     private View offlineIndicator;
     private View errorView;
     private View loadingView;
-    private TabLayout tabLayout;
-    private SearchView searchView;
+    private ImageView appLogo;
+    private ImageButton searchButton;
+    private ImageButton menuButton;
+    private BottomNavigationView bottomNavigationView;
     
     private ArticleRepository articleRepository;
     private CategoryRepository categoryRepository;
@@ -76,17 +80,24 @@ public class MainActivity extends AppCompatActivity implements ArticleAdapter.Ar
         // Initialize UI components
         recyclerView = findViewById(R.id.recyclerView);
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
-        fabAdd = findViewById(R.id.fabAdd);
         emptyView = findViewById(R.id.emptyView);
         offlineIndicator = findViewById(R.id.offlineIndicator);
         errorView = findViewById(R.id.errorView);
         loadingView = findViewById(R.id.loadingView);
-        tabLayout = findViewById(R.id.tabLayout);
-        searchView = findViewById(R.id.searchView);
+        
+        // Initialize toolbar components
+        appLogo = findViewById(R.id.toolbar_app_logo);
+        searchButton = findViewById(R.id.toolbar_search_icon);
+        menuButton = findViewById(R.id.toolbar_menu_icon);
         
         // Set up menu button
-        ImageButton menuButton = findViewById(R.id.menuButton);
         menuButton.setOnClickListener(this::showPopupMenu);
+        
+        // Set up search button
+        searchButton.setOnClickListener(v -> {
+            // Handle search click
+            searchArticles("");
+        });
 
         // Set up demo button in empty view
         Button buttonCreateDemo = findViewById(R.id.buttonCreateDemo);
@@ -129,73 +140,60 @@ public class MainActivity extends AppCompatActivity implements ArticleAdapter.Ar
             R.color.colorPrimary,
             R.color.colorAccent
         );
-
-        // Set up FAB
-        fabAdd.setOnClickListener(view -> startCreateArticle());
         
-        // Set up searchView
-        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
-            @Override
-            public boolean onQueryTextSubmit(String query) {
-                searchArticles(query);
-                return true;
-            }
-
-            @Override
-            public boolean onQueryTextChange(String newText) {
-                return false;
-            }
-        });
+        // Set up bottom navigation
+        setupBottomNavigation();
         
-        // Set up tabs
-        setupCategoryTabs();
-
         // Load initial data
         loadArticles();
     }
-    
-    private void setupCategoryTabs() {
-        // Add "All" tab
-        tabLayout.addTab(tabLayout.newTab().setText("All"));
+
+    /**
+     * Sets up the bottom navigation view with its listener
+     */
+    private void setupBottomNavigation() {
+        bottomNavigationView = findViewById(R.id.bottom_navigation);
         
-        // Load categories and add tabs
-        categoryRepository.getAllCategories((categories, error) -> {
-            if (error == null && categories != null && !categories.isEmpty()) {
-                runOnUiThread(() -> {
-                    for (Category category : categories) {
-                        tabLayout.addTab(tabLayout.newTab().setText(category.getName()));
-                    }
+        bottomNavigationView.setOnItemSelectedListener(item -> {
+            int itemId = item.getItemId();
+            Log.d(TAG, "Bottom navigation item selected: " + item.getTitle());
+            
+            if (itemId == R.id.nav_home) {
+                // Already on home, just refresh
+                refreshArticles();
+                return true;
+            } else if (itemId == R.id.nav_discover) {
+                // Navigate to discover/community
+                // TODO: Refactor to use Fragments for smoother in-app navigation instead of starting new Activities for tabs.
+                safeNavigateTo(() -> {
+                    startActivity(new Intent(this, CategoryBrowseActivity.class));
                 });
+                return true;
+            } else if (itemId == R.id.nav_create) {
+                // Navigate to create
+                startCreateArticle();
+                return true;
+            } else if (itemId == R.id.nav_templates) {
+                // Navigate to templates
+                // TODO: Refactor to use Fragments for smoother in-app navigation instead of starting new Activities for tabs.
+                safeNavigateTo(() -> {
+                    startActivity(new Intent(this, TemplateListActivity.class));
+                });
+                return true;
+            } else if (itemId == R.id.nav_profile_bottom) {
+                // Navigate to profile
+                // TODO: Refactor to use Fragments for smoother in-app navigation instead of starting new Activities for tabs.
+                safeNavigateTo(() -> {
+                    startActivity(new Intent(this, UserProfileActivity.class));
+                });
+                return true;
             }
+            
+            return false;
         });
         
-        // Handle tab selection
-        tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
-            @Override
-            public void onTabSelected(TabLayout.Tab tab) {
-                int position = tab.getPosition();
-                if (position == 0) {
-                    // "All" selected
-                    selectedCategoryId = -1;
-                    loadArticles();
-                } else if (position <= tabLayout.getTabCount()) {
-                    // Get category ID from position (adjust for "All" tab)
-                    selectedCategoryId = position; // Simplified - in production you'd map to actual category IDs
-                    loadArticlesByCategory(selectedCategoryId);
-                }
-            }
-
-            @Override
-            public void onTabUnselected(TabLayout.Tab tab) {
-                // Not needed
-            }
-
-            @Override
-            public void onTabReselected(TabLayout.Tab tab) {
-                // Reload on reselection
-                onTabSelected(tab);
-            }
-        });
+        // Set the initial selected item
+        bottomNavigationView.setSelectedItemId(R.id.nav_home);
     }
 
     private void showPopupMenu(View view) {
@@ -213,7 +211,7 @@ public class MainActivity extends AppCompatActivity implements ArticleAdapter.Ar
                 int id = item.getItemId();
         
                 if (id == R.id.action_search) {
-                    searchView.setIconified(false); // Open the search view
+                    searchArticles("");
                     return true;
                 } else if (id == R.id.action_bookmarks) {
                     safeNavigateTo(() -> {
@@ -629,9 +627,6 @@ public class MainActivity extends AppCompatActivity implements ArticleAdapter.Ar
                             
                             // Update local storage with demo articles
                             saveArticlesToLocalStorage(articles);
-                            
-                            // Refresh tabs with new categories
-                            setupCategoryTabs();
                         } else {
                             Toast.makeText(MainActivity.this, 
                                 "No articles were created", Toast.LENGTH_SHORT).show();
@@ -705,23 +700,9 @@ public class MainActivity extends AppCompatActivity implements ArticleAdapter.Ar
     }
 
     private void startCreateArticle() {
-        try {
-            // Show loading state
-            fabAdd.setEnabled(false);
-            
-            Intent intent = new Intent(this, ArticleEditorActivity.class);
-            // Add parameters for new article creation
-            intent.putExtra("mode", "create_new");
-            intent.putExtra("source", "fab_home");
-            startActivity(intent);
-            
-            // Re-enable fab after short delay
-            new Handler().postDelayed(() -> fabAdd.setEnabled(true), 500);
-        } catch (Exception e) {
-            Log.e(TAG, "Error navigating to article creation", e);
-            Toast.makeText(this, "Unable to open article creator", Toast.LENGTH_SHORT).show();
-            fabAdd.setEnabled(true);
-        }
+        // Navigate to article creation
+        Intent intent = new Intent(MainActivity.this, ArticleEditorActivity.class);
+        startActivity(intent);
     }
 
     private void navigateToLogin() {

@@ -16,6 +16,17 @@
     <string name="offline_mode">You are currently offline</string>
     <string name="no_internet_connection">No internet connection</string>
     <string name="syncing_data">Syncing data with server...</string>
+    <string name="toolbar_profile_description">User profile</string>
+    <string name="toolbar_search_description">Search articles</string>
+    <string name="toolbar_menu_description">More options</string>
+    <string name="app_logo_description">App Logo</string>
+    
+    <!-- Bottom Navigation -->
+    <string name="bottom_nav_home_title">Home</string>
+    <string name="bottom_nav_discover_title">Discover</string>
+    <string name="bottom_nav_create_title">Create</string>
+    <string name="bottom_nav_templates_title">Templates</string>
+    <string name="bottom_nav_profile_title">Profile</string>
     
     <!-- Article Detail Activity -->
     <string name="template_name_format">Template: %1$s</string>
