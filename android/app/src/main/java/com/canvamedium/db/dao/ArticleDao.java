@@ -178,4 +178,13 @@ public interface ArticleDao {
      */
     @Query("SELECT * FROM articles ORDER BY created_at DESC")
     List<ArticleEntity> getAllArticlesDirect();
+
+    /**
+     * Get random articles with a limit
+     *
+     * @param limit the maximum number of articles to return
+     * @return a list of random articles
+     */
+    @Query("SELECT * FROM articles ORDER BY RANDOM() LIMIT :limit")
+    List<ArticleEntity> getRandomArticles(int limit);
 } 

@@ -166,4 +166,18 @@
     <string name="featured">Featured</string>
     <string name="trending_articles_title">Trending Articles</string>
     <string name="view_all">View all</string>
+    <string name="recommendations_title">Recommendations</string>
+    
+    <!-- Article Options Menu -->
+    <string name="action_share">Share</string>
+    <string name="action_follow_author">Follow Author</string>
+    <string name="action_save_for_later">Save for later</string>
+    <string name="action_remove_saved">Remove from saved</string>
+    <string name="action_mute_topic">Mute this topic</string>
+    <string name="action_report">Report</string>
+    <string name="saved_for_later">Saved for later reading</string>
+    <string name="removed_from_saved">Removed from saved articles</string>
+    <string name="following_author">Following %1$s</string>
+    <string name="muted_topic">Muted %1$s</string>
+    <string name="reporting_article">Reporting article…</string>
 </resources> 

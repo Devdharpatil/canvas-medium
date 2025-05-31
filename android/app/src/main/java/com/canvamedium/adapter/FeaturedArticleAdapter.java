@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.canvamedium.R;
 import com.canvamedium.model.Article;
+import com.canvamedium.util.BindingAdapters;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -79,16 +80,12 @@ public class FeaturedArticleAdapter extends RecyclerView.Adapter<FeaturedArticle
             holder.badgeTextView.setText(R.string.featured);
         }
         
-        // Load image if available
+        // Load image if available using the binding adapter
         if (article.getThumbnailUrl() != null && !article.getThumbnailUrl().isEmpty()) {
-            Glide.with(context)
-                .load(article.getThumbnailUrl())
-                .centerCrop()
-                .placeholder(R.drawable.ic_placeholder)
-                .error(R.drawable.ic_placeholder)
-                .into(holder.imageView);
+            BindingAdapters.loadImage(holder.imageView, article.getThumbnailUrl(), null);
         } else {
-            holder.imageView.setImageResource(R.drawable.ic_placeholder);
+            // If no image URL is available, use a sample image from our provider
+            BindingAdapters.loadImage(holder.imageView, null, null);
         }
         
         // Set click listener

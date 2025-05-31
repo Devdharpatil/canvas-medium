@@ -1,10 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="240dp"
+    android:height="160dp"
+    android:viewportWidth="240"
+    android:viewportHeight="160">
+    
+    <!-- Background gradient -->
     <path
-        android:fillColor="#CCCCCC"
-        android:pathData="M21,19V5c0,-1.1 -0.9,-2 -2,-2H5c-1.1,0 -2,0.9 -2,2v14c0,1.1 0.9,2 2,2h14c1.1,0 2,-0.9 2,-2zM8.5,13.5l2.5,3.01L14.5,12l4.5,6H5l3.5,-4.5z"/>
+        android:fillType="evenOdd"
+        android:pathData="M0,0h240v160h-240z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="0"
+                android:startY="0"
+                android:endX="240"
+                android:endY="160"
+                android:type="linear">
+                <item android:offset="0" android:color="#FFE3F2FD"/>
+                <item android:offset="1" android:color="#FF64B5F6"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    
+    <!-- Camera icon in the center -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M120,80m-30,0a30,30 0,1 1,60 0a30,30 0,1 1,-60 0" />
+    
+    <path
+        android:fillColor="#1976D2"
+        android:pathData="M135,80C135,88.3 128.3,95 120,95C111.7,95 105,88.3 105,80C105,71.7 111.7,65 120,65C128.3,65 135,71.7 135,80ZM140,65L145,65L145,70L140,70L140,65ZM120,60C108.9,60 100,68.9 100,80C100,91.1 108.9,100 120,100C131.1,100 140,91.1 140,80C140,68.9 131.1,60 120,60Z" />
+    
+    <!-- Decorative elements -->
+    <path
+        android:fillColor="#1976D2"
+        android:pathData="M30,50m-10,0a10,10 0,1 1,20 0a10,10 0,1 1,-20 0" />
+    
+    <path
+        android:fillColor="#1976D2"
+        android:pathData="M210,50m-10,0a10,10 0,1 1,20 0a10,10 0,1 1,-20 0" />
+    
+    <path
+        android:fillColor="#1976D2"
+        android:pathData="M0,120h240v5h-240z" />
 </vector> 

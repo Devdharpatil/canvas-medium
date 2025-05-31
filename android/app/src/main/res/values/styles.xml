@@ -28,6 +28,10 @@
         <item name="textAppearanceSubtitle1">@style/TextAppearance.App.Subtitle1</item>
         <item name="textAppearanceBody1">@style/TextAppearance.App.Body1</item>
         <item name="textAppearanceButton">@style/TextAppearance.App.Button</item>
+        
+        <!-- PopupMenu styles -->
+        <item name="popupMenuStyle">@style/Widget.App.PopupMenu</item>
+        <item name="actionOverflowMenuStyle">@style/Widget.App.PopupMenu.Overflow</item>
     </style>
 
     <style name="AppTheme.NoActionBar">
@@ -38,6 +42,17 @@
     <style name="AppTheme.AppBarOverlay" parent="ThemeOverlay.MaterialComponents.Dark.ActionBar" />
 
     <style name="AppTheme.PopupOverlay" parent="ThemeOverlay.MaterialComponents.Light" />
+    
+    <!-- Custom PopupMenu Style -->
+    <style name="Widget.App.PopupMenu" parent="Widget.MaterialComponents.PopupMenu">
+        <item name="android:popupBackground">@color/app_surface_light</item>
+        <item name="android:textColor">@color/app_text_primary</item>
+    </style>
+    
+    <style name="Widget.App.PopupMenu.Overflow" parent="Widget.MaterialComponents.PopupMenu.Overflow">
+        <item name="android:popupBackground">@color/app_surface_light</item>
+        <item name="android:textColor">@color/app_text_primary</item>
+    </style>
     
     <!-- Alias styles for backward compatibility -->
     <style name="Theme.CanvaMedium" parent="AppTheme.NoActionBar" />
@@ -73,5 +88,9 @@
     <style name="ShapeAppearance.Material3.Corner.Full" parent="">
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">50%</item>
+    </style>
+
+    <style name="ShapeAppearance.Material3.Corner.Medium" parent="">
+        <item name="cornerSize">8dp</item>
     </style>
 </resources> 

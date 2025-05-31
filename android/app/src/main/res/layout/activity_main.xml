@@ -173,57 +173,60 @@
                 android:gravity="center"
                 android:orientation="horizontal" />
 
-            <!-- Section Header for Categories -->
-            <TextView
-                android:id="@+id/categories_header"
+            <!-- Recommendations Section -->
+            <!-- Section Header -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/recommendations_section_header"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
                 android:layout_marginTop="16dp"
-                android:layout_marginEnd="16dp"
-                android:layout_marginBottom="8dp"
-                android:text="@string/browse_categories"
-                android:textAppearance="?attr/textAppearanceHeadline6"
-                android:textSize="16sp" />
+                android:layout_marginBottom="8dp">
 
-            <!-- Horizontal Category Selector -->
+                <TextView
+                    android:id="@+id/recommendations_section_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:text="@string/recommendations_title"
+                    android:textAppearance="?attr/textAppearanceHeadline6"
+                    android:textSize="20sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:textColor="?attr/colorOnSurface"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent" />
+
+                <TextView
+                    android:id="@+id/recommendations_view_all_button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="16dp"
+                    android:padding="8dp"
+                    android:text="@string/view_all"
+                    android:textAppearance="?attr/textAppearanceSubtitle1"
+                    android:textSize="14sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:textColor="?attr/colorPrimary"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackground"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <!-- Recommendations List -->
             <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/category_recycler_view"
-                android:layout_width="match_parent"
-                android:layout_height="140dp"
-                android:clipToPadding="false"
-                android:orientation="horizontal"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
-                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
-
-            <!-- Section Header for Articles -->
-            <TextView
-                android:id="@+id/articles_header"
+                android:id="@+id/recommendations_recycler_view"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:layout_marginTop="16dp"
-                android:layout_marginEnd="16dp"
-                android:layout_marginBottom="8dp"
-                android:text="@string/latest_articles"
-                android:textAppearance="?attr/textAppearanceHeadline6"
-                android:textSize="16sp" />
-
-            <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-                android:id="@+id/swipeRefreshLayout"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent">
-
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/recyclerView"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:clipToPadding="false"
-                    android:paddingTop="8dp"
-                    android:paddingBottom="0dp" />
-
-            </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+                android:clipToPadding="false"
+                android:paddingHorizontal="4dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="16dp"
+                android:nestedScrollingEnabled="false"
+                android:overScrollMode="never"
+                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 

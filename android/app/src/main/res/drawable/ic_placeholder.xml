@@ -1,10 +1,48 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="240dp"
+    android:height="160dp"
+    android:viewportWidth="240"
+    android:viewportHeight="160">
+    
+    <!-- Background gradient -->
     <path
-        android:fillColor="#CCCCCC"
-        android:pathData="M21,19V5c0,-1.1 -0.9,-2 -2,-2H5c-1.1,0 -2,0.9 -2,2v14c0,1.1 0.9,2 2,2h14c1.1,0 2,-0.9 2,-2zM8.5,13.5l2.5,3.01L14.5,12l4.5,6H5l3.5,-4.5z"/>
+        android:fillType="evenOdd"
+        android:pathData="M0,0h240v160h-240z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="0"
+                android:startY="0"
+                android:endX="240"
+                android:endY="160"
+                android:type="linear">
+                <item android:offset="0" android:color="#FFE8F5E9"/>
+                <item android:offset="1" android:color="#FF81C784"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    
+    <!-- Mountain shapes -->
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M0,160L60,120L120,140L180,100L240,130L240,160L0,160Z" />
+    
+    <path
+        android:fillColor="#388E3C"
+        android:pathData="M0,160L80,130L160,145L240,115L240,160L0,160Z" />
+    
+    <!-- Sun -->
+    <path
+        android:fillColor="#FFEB3B"
+        android:pathData="M180,40m-20,0a20,20 0,1 1,40 0a20,20 0,1 1,-40 0" />
+    
+    <!-- Image icon -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M120,80m-25,0a25,25 0,1 1,50 0a25,25 0,1 1,-50 0" />
+    
+    <path
+        android:fillColor="#2E7D32"
+        android:pathData="M110,80L110,65L130,65L130,80L143,80L120,103L97,80L110,80Z" />
 </vector> 

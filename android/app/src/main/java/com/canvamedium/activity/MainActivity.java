@@ -25,11 +25,20 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import androidx.viewpager2.widget.ViewPager2;
 import androidx.viewpager2.widget.CompositePageTransformer;
 import androidx.viewpager2.widget.MarginPageTransformer;
+import androidx.recyclerview.widget.LinearSnapHelper;
+import androidx.recyclerview.widget.PagerSnapHelper;
+import androidx.recyclerview.widget.SnapHelper;
+import androidx.recyclerview.widget.RecyclerView.ItemDecoration;
+import android.graphics.Rect;
+import android.util.DisplayMetrics;
+import androidx.recyclerview.widget.DefaultItemAnimator;
+import androidx.recyclerview.widget.LinearSmoothScroller;
 
 import com.canvamedium.R;
 import com.canvamedium.adapter.ArticleAdapter;
 import com.canvamedium.adapter.CategoryAdapter;
 import com.canvamedium.adapter.FeaturedArticleAdapter;
+import com.canvamedium.adapter.RecommendationsAdapter;
 import com.canvamedium.model.Article;
 import com.canvamedium.model.Category;
 import com.canvamedium.repository.ArticleRepository;
@@ -55,17 +64,14 @@ import java.util.stream.Collectors;
  */
 public class MainActivity extends AppCompatActivity implements 
         ArticleAdapter.ArticleClickListener,
-        CategoryAdapter.OnCategoryClickListener,
-        FeaturedArticleAdapter.OnFeaturedArticleClickListener {
+        FeaturedArticleAdapter.OnFeaturedArticleClickListener,
+        RecommendationsAdapter.ArticleClickListener {
 
     private static final String TAG = "MainActivity";
     
-    private RecyclerView recyclerView;
-    private RecyclerView categoryRecyclerView;
-    private ArticleAdapter adapter;
-    private CategoryAdapter categoryAdapter;
+    private RecyclerView recommendationsRecyclerView;
     private FeaturedArticleAdapter featuredAdapter;
-    private SwipeRefreshLayout swipeRefreshLayout;
+    private RecommendationsAdapter recommendationsAdapter;
     private View emptyView;
     private View offlineIndicator;
     private View errorView;
@@ -94,9 +100,7 @@ public class MainActivity extends AppCompatActivity implements
         }
 
         // Initialize UI components
-        recyclerView = findViewById(R.id.recyclerView);
-        categoryRecyclerView = findViewById(R.id.category_recycler_view);
-        swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
+        recommendationsRecyclerView = findViewById(R.id.recommendations_recycler_view);
         emptyView = findViewById(R.id.emptyView);
         offlineIndicator = findViewById(R.id.offlineIndicator);
         errorView = findViewById(R.id.errorView);
@@ -131,18 +135,31 @@ public class MainActivity extends AppCompatActivity implements
             });
         }
 
-        // Set up RecyclerView for articles
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        adapter = new ArticleAdapter(this);
-        recyclerView.setAdapter(adapter);
-        
-        // Set up category RecyclerView
-        categoryAdapter = new CategoryAdapter(this, this);
-        categoryAdapter.setHorizontalLayout(true);
-        categoryRecyclerView.setAdapter(categoryAdapter);
+        // Set up recommendations RecyclerView
+        recommendationsRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recommendationsAdapter = new RecommendationsAdapter(this);
+        recommendationsRecyclerView.setAdapter(recommendationsAdapter);
+        // Disable nested scrolling to ensure smooth scrolling of main content
+        recommendationsRecyclerView.setNestedScrollingEnabled(false);
 
         // Set up featured carousel
         setupFeaturedCarousel();
+        
+        // Set up View All buttons
+        findViewById(R.id.trending_view_all_button).setOnClickListener(v -> {
+            // Navigate to view all featured articles
+            // Using CategoryBrowseActivity instead as FeaturedArticlesActivity doesn't exist yet
+            Toast.makeText(this, "Viewing all trending articles", Toast.LENGTH_SHORT).show();
+            startActivity(new Intent(this, CategoryBrowseActivity.class));
+        });
+        
+        findViewById(R.id.recommendations_view_all_button).setOnClickListener(v -> {
+            // Navigate to view all recommended articles
+            Toast.makeText(this, "Viewing all recommendations", Toast.LENGTH_SHORT).show();
+            Intent intent = new Intent(this, CategoryBrowseActivity.class);
+            intent.putExtra("VIEW_TYPE", "RECOMMENDATIONS");
+            startActivity(intent);
+        });
 
         // Initialize repositories and managers
         articleRepository = new ArticleRepository(getApplication());
@@ -159,19 +176,17 @@ public class MainActivity extends AppCompatActivity implements
         // Show offline indicator if needed
         updateConnectivityState();
 
-        // Set up swipe refresh
-        swipeRefreshLayout.setOnRefreshListener(this::refreshArticles);
-        swipeRefreshLayout.setColorSchemeResources(
-            R.color.colorPrimary,
-            R.color.colorAccent
-        );
-        
         // Set up bottom navigation
         setupBottomNavigation();
         
+        // Get selected category ID from intent if available
+        if (getIntent().hasExtra("CATEGORY_ID")) {
+            selectedCategoryId = getIntent().getLongExtra("CATEGORY_ID", -1);
+        }
+        
         // Load initial data
-        loadCategories();
         loadArticles();
+        loadRecommendations();
     }
 
     /**
@@ -371,12 +386,10 @@ public class MainActivity extends AppCompatActivity implements
      * Filter articles by recency
      */
     private void filterArticlesByRecent() {
-        swipeRefreshLayout.setRefreshing(true);
         showLoading(true);
         
         articleRepository.getArticlesSortedByDate((articles, error) -> {
             runOnUiThread(() -> {
-                swipeRefreshLayout.setRefreshing(false);
                 showLoading(false);
                 
                 if (error != null) {
@@ -386,7 +399,6 @@ public class MainActivity extends AppCompatActivity implements
                 }
                 
                 if (articles != null && !articles.isEmpty()) {
-                    adapter.setArticles(articles);
                     showEmptyState(false);
                     Snackbar.make(
                         findViewById(android.R.id.content),
@@ -404,12 +416,10 @@ public class MainActivity extends AppCompatActivity implements
      * Filter articles by popularity
      */
     private void filterArticlesByPopularity() {
-        swipeRefreshLayout.setRefreshing(true);
         showLoading(true);
         
         articleRepository.getArticlesSortedByPopularity((articles, error) -> {
             runOnUiThread(() -> {
-                swipeRefreshLayout.setRefreshing(false);
                 showLoading(false);
                 
                 if (error != null) {
@@ -419,7 +429,6 @@ public class MainActivity extends AppCompatActivity implements
                 }
                 
                 if (articles != null && !articles.isEmpty()) {
-                    adapter.setArticles(articles);
                     showEmptyState(false);
                     Snackbar.make(
                         findViewById(android.R.id.content),
@@ -437,7 +446,6 @@ public class MainActivity extends AppCompatActivity implements
      * Synchronize content with the server
      */
     private void syncContent() {
-        swipeRefreshLayout.setRefreshing(true);
         Snackbar.make(
             findViewById(android.R.id.content),
             "Syncing your content...",
@@ -450,7 +458,6 @@ public class MainActivity extends AppCompatActivity implements
             .subscribe(
                 () -> {
                     runOnUiThread(() -> {
-                        swipeRefreshLayout.setRefreshing(false);
                         Snackbar.make(
                             findViewById(android.R.id.content),
                             "Sync completed successfully",
@@ -463,7 +470,6 @@ public class MainActivity extends AppCompatActivity implements
                 },
                 error -> {
                     runOnUiThread(() -> {
-                        swipeRefreshLayout.setRefreshing(false);
                         Snackbar.make(
                             findViewById(android.R.id.content),
                             "Sync failed: " + error.getMessage(),
@@ -488,7 +494,6 @@ public class MainActivity extends AppCompatActivity implements
         
         articleRepository.getAllArticles((articles, error) -> {
             runOnUiThread(() -> {
-                swipeRefreshLayout.setRefreshing(false);
                 showLoading(false);
                 
                 if (error != null) {
@@ -499,7 +504,6 @@ public class MainActivity extends AppCompatActivity implements
                 
                 if (articles == null || articles.isEmpty()) {
                     showEmptyState(true);
-                    adapter.setArticles(new ArrayList<>());
                     featuredAdapter.setFeaturedArticles(new ArrayList<>());
                 } else {
                     showEmptyState(false);
@@ -525,13 +529,7 @@ public class MainActivity extends AppCompatActivity implements
                                 .filter(article -> article.getCategory() != null 
                                         && article.getCategory().getId() == selectedCategoryId)
                                 .collect(Collectors.toList());
-                        adapter.setArticles(filteredArticles);
-                    } else {
-                        adapter.setArticles(articles);
                     }
-                    
-                    // Update category counts
-                    updateCategoryCounts(articles);
                 }
             });
         });
@@ -541,14 +539,8 @@ public class MainActivity extends AppCompatActivity implements
      * Loads articles by category
      */
     private void loadArticlesByCategory(long categoryId) {
-        swipeRefreshLayout.setRefreshing(true);
-        showLoading(true);
-        
         articleRepository.getArticlesByCategory(categoryId, (articles, error) -> {
             runOnUiThread(() -> {
-                swipeRefreshLayout.setRefreshing(false);
-                showLoading(false);
-                
                 if (error != null) {
                     Log.e(TAG, "Error loading articles by category: " + error);
                     showError(getString(R.string.error_loading_articles));
@@ -556,10 +548,8 @@ public class MainActivity extends AppCompatActivity implements
                 }
                 
                 if (articles != null && !articles.isEmpty()) {
-                    adapter.setArticles(articles);
                     showEmptyState(false);
                 } else {
-                    adapter.clearArticles();
                     showEmptyState(true);
                 }
             });
@@ -573,13 +563,11 @@ public class MainActivity extends AppCompatActivity implements
             return;
         }
         
-        swipeRefreshLayout.setRefreshing(true);
         showLoading(true);
         
         // Search articles from repository
         articleRepository.searchArticles(query, (articles, error) -> {
             runOnUiThread(() -> {
-                swipeRefreshLayout.setRefreshing(false);
                 showLoading(false);
                 
                 if (error != null) {
@@ -591,7 +579,6 @@ public class MainActivity extends AppCompatActivity implements
                 }
                 
                 if (articles != null && !articles.isEmpty()) {
-                    adapter.setArticles(articles);
                     showEmptyState(false);
                     
                     // Show search results message
@@ -601,7 +588,6 @@ public class MainActivity extends AppCompatActivity implements
                             Snackbar.LENGTH_SHORT).show();
                 } else {
                     // Show no results message
-                    adapter.clearArticles();
                     Snackbar.make(
                             findViewById(android.R.id.content),
                             "No results found for '" + query + "'",
@@ -616,7 +602,6 @@ public class MainActivity extends AppCompatActivity implements
         if (emptyView != null) {
             emptyView.setVisibility(show ? View.VISIBLE : View.GONE);
         }
-        recyclerView.setVisibility(show ? View.GONE : View.VISIBLE);
         errorView.setVisibility(View.GONE);
     }
     
@@ -630,17 +615,13 @@ public class MainActivity extends AppCompatActivity implements
     }
 
     private void refreshArticles() {
-        if (selectedCategoryId == -1) {
-            loadArticles();
-        } else {
-            loadArticlesByCategory(selectedCategoryId);
-        }
+        loadArticles();
+        loadRecommendations();
     }
     
     private void generateDemoData() {
-        swipeRefreshLayout.setRefreshing(true);
-        isDemoMode = true;
         showLoading(true);
+        isDemoMode = true;
         
         // Show generating message to user
         Snackbar.make(
@@ -655,10 +636,8 @@ public class MainActivity extends AppCompatActivity implements
                 @Override
                 public void onComplete(List<Article> articles) {
                     runOnUiThread(() -> {
-                        swipeRefreshLayout.setRefreshing(false);
                         showLoading(false);
                         if (articles != null && !articles.isEmpty()) {
-                            adapter.setArticles(articles);
                             showEmptyState(false);
                             
                             // Show success message with article count
@@ -681,7 +660,6 @@ public class MainActivity extends AppCompatActivity implements
                 @Override
                 public void onError(String errorMessage) {
                     runOnUiThread(() -> {
-                        swipeRefreshLayout.setRefreshing(false);
                         showLoading(false);
                         
                         // Show error and offer retry
@@ -731,7 +709,6 @@ public class MainActivity extends AppCompatActivity implements
                 }
                 
                 if (articles != null && !articles.isEmpty()) {
-                    adapter.setArticles(articles);
                     showEmptyState(false);
                     Snackbar.make(
                             findViewById(android.R.id.content),
@@ -783,6 +760,9 @@ public class MainActivity extends AppCompatActivity implements
                     String message = article.isBookmarked() ? 
                         "Article bookmarked" : "Bookmark removed";
                     Snackbar.make(findViewById(android.R.id.content), message, Snackbar.LENGTH_SHORT).show();
+                    
+                    // Refresh recommendations if needed
+                    loadRecommendations();
                 },
                 throwable -> {
                     Log.e(TAG, "Error toggling bookmark", throwable);
@@ -790,7 +770,8 @@ public class MainActivity extends AppCompatActivity implements
                         "Error updating bookmark", Snackbar.LENGTH_SHORT).show();
                     // Revert the bookmark state in the UI
                     article.setBookmarked(isCurrentlyBookmarked);
-                    adapter.notifyDataSetChanged();
+                    // Instead of updating the adapter, refresh recommendations
+                    loadRecommendations();
                 }
             );
     }
@@ -802,68 +783,53 @@ public class MainActivity extends AppCompatActivity implements
     }
 
     /**
-     * Loads categories for the horizontal category selector
-     */
-    private void loadCategories() {
-        showLoading(true);
-        
-        categoryRepository.getAllCategories((categories, error) -> {
-            showLoading(false);
-            
-            if (error != null) {
-                Toast.makeText(this, getString(R.string.error_loading_categories), Toast.LENGTH_SHORT).show();
-                Log.e(TAG, "Error loading categories: " + error);
-                
-                // At least show "All" category
-                Category allCategory = new Category("All", "all");
-                allCategory.setId(-1L);
-                categoryAdapter.setCategories(List.of(allCategory));
-                return;
-            }
-            
-            if (categories != null && !categories.isEmpty()) {
-                // Create "All" category at the beginning
-                Category allCategory = new Category("All", "all");
-                allCategory.setId(-1L);
-                allCategory.setDescription("All articles");
-                allCategory.setArticleCount(adapter.getItemCount());
-                
-                List<Category> allCategories = new ArrayList<>();
-                allCategories.add(allCategory);
-                allCategories.addAll(categories);
-                
-                categoryAdapter.setCategories(allCategories);
-            } else {
-                // Handle empty categories
-                Category allCategory = new Category("All", "all");
-                allCategory.setId(-1L);
-                categoryAdapter.setCategories(List.of(allCategory));
-            }
-        });
-    }
-    
-    /**
      * Updates the article counts for each category
+     * Currently commented out as we've moved the categories to the Discover screen.
      */
+    /*
     private void updateCategoryCounts(List<Article> articles) {
+        if (articles == null || articles.isEmpty()) {
+            return;
+        }
+        
+        // Skip if no categories loaded
         if (categoryAdapter.getItemCount() <= 1) {
             return;
         }
         
+        // Count articles per category
+        Map<Long, Integer> categoryCounts = new HashMap<>();
+        
+        for (int i = 0; i < categoryAdapter.getItemCount(); i++) {
+            Category category = categoryAdapter.getCategory(i);
+            if (category != null && category.getId() != null) {
+                categoryCounts.put(category.getId(), 0);
+            }
+        }
+        
+        // Count articles
+        for (Article article : articles) {
+            if (article.getCategory() != null && article.getCategory().getId() != null) {
+                Long categoryId = article.getCategory().getId();
+                
+                Integer currentCount = categoryCounts.get(categoryId);
+                if (currentCount != null) {
+                    categoryCounts.put(categoryId, currentCount + 1);
+                }
+            }
+        }
+        
+        // Update category counts
         List<Category> currentCategories = new ArrayList<>();
         for (int i = 0; i < categoryAdapter.getItemCount(); i++) {
             Category category = categoryAdapter.getCategory(i);
             if (category != null) {
                 if (category.getId() == -1) {
-                    // Update "All" category count
+                    // "All" category gets the total count
                     category.setArticleCount(articles.size());
                 } else {
-                    // Count articles for this category
-                    long count = articles.stream()
-                            .filter(article -> article.getCategory() != null 
-                                    && article.getCategory().getId() == category.getId())
-                            .count();
-                    category.setArticleCount((int) count);
+                    Integer count = categoryCounts.get(category.getId());
+                    category.setArticleCount(count != null ? count : 0);
                 }
                 currentCategories.add(category);
             }
@@ -871,21 +837,8 @@ public class MainActivity extends AppCompatActivity implements
         
         categoryAdapter.setCategories(currentCategories);
     }
+    */
 
-    /**
-     * Callback when a category is clicked
-     */
-    @Override
-    public void onCategoryClick(Category category) {
-        selectedCategoryId = category.getId();
-        if (selectedCategoryId == -1) {
-            // "All" category selected
-            loadArticles();
-        } else {
-            loadArticlesByCategory(selectedCategoryId);
-        }
-    }
-    
     /**
      * Callback when a featured article is clicked
      */
@@ -1007,5 +960,22 @@ public class MainActivity extends AppCompatActivity implements
             // Add to container
             container.addView(indicator);
         }
+    }
+
+    /**
+     * Loads recommended articles from the repository.
+     */
+    private void loadRecommendations() {
+        // We're using a simplified approach here to keep the recommendations list small
+        // In a real app, this would use a specialized recommendation algorithm
+        articleRepository.getRecommendedArticles(5, articles -> {
+            if (articles != null && !articles.isEmpty()) {
+                runOnUiThread(() -> {
+                    recommendationsAdapter.setRecommendedArticles(articles, 5);
+                });
+            }
+        }, error -> {
+            Log.e(TAG, "Error loading recommendations: " + error);
+        });
     }
 } 

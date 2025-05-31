@@ -515,6 +515,28 @@ public class DemoDataGenerator {
     }
     
     /**
+     * Creates sample articles locally without trying to fetch templates from the server.
+     * Useful when there are authentication or network issues.
+     *
+     * @param context The application context
+     * @param callback Callback to notify when all articles are created
+     */
+    public static void createSampleArticlesLocally(Context context, final DemoDataCallback callback) {
+        // Create a simple template for offline mode
+        List<Template> templates = new ArrayList<>();
+        
+        Template basicTemplate = new Template();
+        basicTemplate.setId(1L);
+        basicTemplate.setName("Basic Article");
+        basicTemplate.setDescription("A simple article template with header and content");
+        
+        templates.add(basicTemplate);
+        
+        // Create articles using the template
+        createLocalArticles(context, templates, callback);
+    }
+    
+    /**
      * Creates sample articles locally when offline.
      * 
      * @param context The application context
@@ -539,7 +561,7 @@ public class DemoDataGenerator {
                 "The Future of AI Development in 2024",
                 techContent,
                 "A deep dive into upcoming AI trends that will shape technology in 2024.",
-                "https://images.unsplash.com/photo-1677442135416-d57ead66c6a8?q=80&w=1932&auto=format&fit=crop",
+                SampleImageProvider.getImageUrl(0),
                 templates.get(0).getId(),
                 Article.STATUS_PUBLISHED
         );
@@ -571,7 +593,7 @@ public class DemoDataGenerator {
                 "Hidden Gems: Unexplored Destinations in Southeast Asia",
                 travelContent,
                 "Discover secret paradises and authentic cultural experiences away from tourist crowds.",
-                "https://images.unsplash.com/photo-1528127269322-539801943592?q=80&w=2070&auto=format&fit=crop",
+                SampleImageProvider.getImageUrl(4),
                 templates.get(Math.min(1, templates.size() - 1)).getId(),
                 Article.STATUS_PUBLISHED
         );
@@ -602,7 +624,7 @@ public class DemoDataGenerator {
                 "Traditional Italian Pasta: Secret Family Recipes",
                 recipeContent,
                 "Master the art of homemade pasta with authentic techniques passed down through generations.",
-                "https://images.unsplash.com/photo-1556761223-4c4282c73f77?q=80&w=2065&auto=format&fit=crop",
+                SampleImageProvider.getImageUrl(7),
                 templates.get(Math.min(2, templates.size() - 1)).getId(),
                 Article.STATUS_PUBLISHED
         );
@@ -633,7 +655,7 @@ public class DemoDataGenerator {
                 "Mindfulness Practices for Daily Wellness",
                 healthContent,
                 "Simple yet powerful mindfulness techniques to enhance mental clarity and reduce stress in just minutes a day.",
-                "https://images.unsplash.com/photo-1506126613408-eca07ce68773?q=80&w=1998&auto=format&fit=crop",
+                SampleImageProvider.getImageUrl(8),
                 templates.get(Math.min(3, templates.size() - 1)).getId(),
                 Article.STATUS_PUBLISHED
         );
@@ -666,7 +688,7 @@ public class DemoDataGenerator {
                 "Words of Wisdom: Transformative Quotes",
                 quoteContent,
                 "Powerful quotes that inspire change, creativity, and personal growth.",
-                "https://images.unsplash.com/photo-1580894732930-0babd100d356?q=80&w=2070&auto=format&fit=crop",
+                SampleImageProvider.getImageUrl(11),
                 templates.get(Math.min(4, templates.size() - 1)).getId(),
                 Article.STATUS_PUBLISHED
         );
@@ -691,42 +713,6 @@ public class DemoDataGenerator {
             // Return the created articles through the callback
             callback.onComplete(localArticles);
         }, 800);
-    }
-    
-    /**
-     * Creates sample articles locally without trying to fetch templates from the server.
-     * Useful when there are authentication or network issues.
-     *
-     * @param context The application context
-     * @param callback Callback to notify when all articles are created
-     */
-    public static void createSampleArticlesLocally(Context context, final DemoDataCallback callback) {
-        // Create default templates for various types
-        Template blogTemplate = Template.createPredefinedTemplate(Template.TEMPLATE_TYPE_BLOG);
-        blogTemplate.setId(1L);
-        
-        Template photoGalleryTemplate = Template.createPredefinedTemplate(Template.TEMPLATE_TYPE_PHOTO_GALLERY);
-        photoGalleryTemplate.setId(2L);
-        
-        Template articleTemplate = Template.createPredefinedTemplate(Template.TEMPLATE_TYPE_ARTICLE);
-        articleTemplate.setId(3L);
-        
-        Template tutorialTemplate = Template.createPredefinedTemplate(Template.TEMPLATE_TYPE_TUTORIAL);
-        tutorialTemplate.setId(4L);
-        
-        Template quoteTemplate = Template.createPredefinedTemplate(Template.TEMPLATE_TYPE_QUOTE);
-        quoteTemplate.setId(5L);
-        
-        // Add all templates to a list
-        List<Template> templates = new ArrayList<>();
-        templates.add(blogTemplate);
-        templates.add(photoGalleryTemplate);
-        templates.add(articleTemplate);
-        templates.add(tutorialTemplate);
-        templates.add(quoteTemplate);
-        
-        // Create local articles using these templates
-        createLocalArticles(context, templates, callback);
     }
     
     /**

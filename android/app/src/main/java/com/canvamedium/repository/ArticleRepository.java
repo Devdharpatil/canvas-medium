@@ -826,4 +826,109 @@ public class ArticleRepository {
             }
         });
     }
+
+    /**
+     * Get recommended articles with a specified limit.
+     * 
+     * @param limit Maximum number of articles to return
+     * @param successCallback Callback for successful retrieval
+     * @param errorCallback Callback for errors
+     */
+    public void getRecommendedArticles(int limit, ArticleListCallback successCallback, ErrorCallback errorCallback) {
+        if (networkUtils.isOnline()) {
+            // Try to get recommendations from the API first
+            executor.execute(() -> {
+                try {
+                    // For now, we're using the same endpoint and filtering client-side
+                    // In a real app, this would use a dedicated recommendations API endpoint
+                    Response<List<Article>> response = apiService.getAllArticles().execute();
+                    if (response.isSuccessful() && response.body() != null) {
+                        // Filter and sort articles to get "recommendations"
+                        // In a real app this would be based on user preferences, reading history, etc.
+                        List<Article> recommendedArticles = new ArrayList<>(response.body());
+                        // Shuffle the list to simulate random recommendations
+                        java.util.Collections.shuffle(recommendedArticles);
+                        
+                        // Limit the number of articles
+                        if (recommendedArticles.size() > limit) {
+                            recommendedArticles = recommendedArticles.subList(0, limit);
+                        }
+                        
+                        // Create a final copy of the list for the lambda
+                        final List<Article> finalRecommendedArticles = new ArrayList<>(recommendedArticles);
+                        
+                        // Save to database and return result
+                        List<ArticleEntity> articleEntities = convertToArticleEntities(finalRecommendedArticles);
+                        articleDao.insertArticleList(articleEntities)
+                                .subscribeOn(Schedulers.io())
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribe(
+                                    () -> {
+                                        Log.d(TAG, "Recommended articles saved to database");
+                                        // Return the original objects to avoid another conversion
+                                        successCallback.onSuccess(finalRecommendedArticles);
+                                    },
+                                    error -> {
+                                        Log.e(TAG, "Error saving recommended articles", error);
+                                        errorCallback.onError("Error saving recommendation data: " + error.getMessage());
+                                    }
+                                );
+                    } else {
+                        // Fall back to database if API request failed
+                        getRecommendedArticlesFromDatabase(limit, successCallback, errorCallback);
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Error fetching recommended articles from API", e);
+                    // Fall back to database on network error
+                    getRecommendedArticlesFromDatabase(limit, successCallback, errorCallback);
+                }
+            });
+        } else {
+            // If offline, get data from database
+            getRecommendedArticlesFromDatabase(limit, successCallback, errorCallback);
+        }
+    }
+    
+    /**
+     * Get recommended articles from local database.
+     * 
+     * @param limit Maximum number of articles to return
+     * @param successCallback Callback for successful retrieval
+     * @param errorCallback Callback for errors
+     */
+    private void getRecommendedArticlesFromDatabase(int limit, ArticleListCallback successCallback, ErrorCallback errorCallback) {
+        executor.execute(() -> {
+            try {
+                // Again, in a real app this would use more sophisticated criteria
+                List<ArticleEntity> entities = articleDao.getRandomArticles(limit);
+                
+                if (entities != null && !entities.isEmpty()) {
+                    List<Article> articles = new ArrayList<>();
+                    for (ArticleEntity entity : entities) {
+                        articles.add(convertToArticle(entity));
+                    }
+                    successCallback.onSuccess(articles);
+                } else {
+                    errorCallback.onError("No recommended articles found");
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error getting recommended articles from database", e);
+                errorCallback.onError("Error retrieving recommendations: " + e.getMessage());
+            }
+        });
+    }
+    
+    /**
+     * Callback interface for receiving a list of articles.
+     */
+    public interface ArticleListCallback {
+        void onSuccess(List<Article> articles);
+    }
+    
+    /**
+     * Callback interface for errors.
+     */
+    public interface ErrorCallback {
+        void onError(String errorMessage);
+    }
 } 

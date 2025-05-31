@@ -14,8 +14,10 @@ import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.request.RequestOptions;
 import com.canvamedium.R;
 import com.canvamedium.model.Category;
+import com.google.android.material.card.MaterialCardView;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,6 +31,7 @@ public class CategoryAdapter extends RecyclerView.Adapter<CategoryAdapter.Catego
     private final Context context;
     private final OnCategoryClickListener listener;
     private boolean isHorizontalLayout = false;
+    private long selectedCategoryId = -1; // Default to "All" category
 
     /**
      * Interface for category click events.
@@ -56,6 +59,27 @@ public class CategoryAdapter extends RecyclerView.Adapter<CategoryAdapter.Catego
      */
     public void setHorizontalLayout(boolean isHorizontal) {
         this.isHorizontalLayout = isHorizontal;
+    }
+
+    /**
+     * Sets the selected category ID.
+     *
+     * @param categoryId The ID of the selected category
+     */
+    public void setSelectedCategoryId(long categoryId) {
+        if (this.selectedCategoryId != categoryId) {
+            this.selectedCategoryId = categoryId;
+            notifyDataSetChanged();
+        }
+    }
+
+    /**
+     * Gets the currently selected category ID.
+     *
+     * @return The selected category ID
+     */
+    public long getSelectedCategoryId() {
+        return selectedCategoryId;
     }
 
     /**
@@ -118,6 +142,9 @@ public class CategoryAdapter extends RecyclerView.Adapter<CategoryAdapter.Catego
     public void onBindViewHolder(@NonNull CategoryViewHolder holder, int position) {
         Category category = categories.get(position);
         
+        // Determine if this category is selected
+        boolean isSelected = category.getId() == selectedCategoryId;
+        
         holder.nameTextView.setText(category.getName());
         
         // Set article count if available
@@ -137,48 +164,89 @@ public class CategoryAdapter extends RecyclerView.Adapter<CategoryAdapter.Catego
             }
         }
         
+        // Special handling for "All" category
+        boolean isAllCategory = category.getId() == -1;
+        
         // Set custom background color if available, otherwise use default
-        if (category.getColor() != null && !category.getColor().isEmpty()) {
+        int cardColor;
+        if (isAllCategory) {
+            // Special styling for "All" category
+            cardColor = ContextCompat.getColor(context, R.color.colorPrimary);
+        } else if (category.getColor() != null && !category.getColor().isEmpty()) {
             try {
-                int color = Color.parseColor(category.getColor());
-                holder.cardView.setCardBackgroundColor(color);
-                
-                // Set text color based on background brightness
-                boolean isDarkBackground = isDarkColor(color);
-                int textColor = isDarkBackground ? Color.WHITE : Color.BLACK;
-                holder.nameTextView.setTextColor(textColor);
-                holder.countTextView.setTextColor(textColor);
-                if (!isHorizontalLayout && holder.descriptionTextView != null) {
-                    holder.descriptionTextView.setTextColor(textColor);
-                }
+                cardColor = Color.parseColor(category.getColor());
             } catch (IllegalArgumentException e) {
-                // Use default color if parsing fails
-                holder.cardView.setCardBackgroundColor(ContextCompat.getColor(context, R.color.colorPrimary));
+                cardColor = ContextCompat.getColor(context, category.isFeatured() ? 
+                    R.color.colorAccent : R.color.colorPrimary);
             }
         } else {
-            holder.cardView.setCardBackgroundColor(ContextCompat.getColor(context, R.color.colorPrimary));
+            cardColor = ContextCompat.getColor(context, category.isFeatured() ? 
+                R.color.colorAccent : R.color.colorPrimary);
         }
         
-        // Load icon if available
+        // Apply card styling
+        if (holder.cardView instanceof MaterialCardView) {
+            MaterialCardView materialCardView = (MaterialCardView) holder.cardView;
+            materialCardView.setCardBackgroundColor(cardColor);
+            
+            // Apply selected state styling
+            if (isSelected) {
+                materialCardView.setStrokeWidth(4);
+                materialCardView.setStrokeColor(ContextCompat.getColor(context, R.color.colorAccent));
+                materialCardView.setCardElevation(6);
+            } else {
+                materialCardView.setStrokeWidth(0);
+                materialCardView.setCardElevation(3);
+            }
+        } else {
+            holder.cardView.setCardBackgroundColor(cardColor);
+        }
+        
+        // Set text color based on background brightness
+        boolean isDarkBackground = isDarkColor(cardColor);
+        int textColor = isDarkBackground ? Color.WHITE : Color.BLACK;
+        holder.nameTextView.setTextColor(textColor);
+        holder.countTextView.setTextColor(textColor);
+        if (!isHorizontalLayout && holder.descriptionTextView != null) {
+            holder.descriptionTextView.setTextColor(textColor);
+        }
+        
+        // Load icon with appropriate tint based on background
         if (category.getIcon() != null && !category.getIcon().isEmpty()) {
             Glide.with(context)
                     .load(category.getIcon())
-                    .circleCrop()
+                    .apply(RequestOptions.circleCropTransform())
                     .placeholder(R.drawable.ic_category_placeholder)
                     .error(R.drawable.ic_category_placeholder)
                     .into(holder.iconImageView);
+            holder.iconImageView.setColorFilter(textColor);
+        } else if (category.getIconUrl() != null && !category.getIconUrl().isEmpty()) {
+            Glide.with(context)
+                    .load(category.getIconUrl())
+                    .apply(RequestOptions.circleCropTransform())
+                    .placeholder(R.drawable.ic_category_placeholder)
+                    .error(R.drawable.ic_category_placeholder)
+                    .into(holder.iconImageView);
+            holder.iconImageView.setColorFilter(textColor);
         } else {
             holder.iconImageView.setImageResource(R.drawable.ic_category_placeholder);
+            holder.iconImageView.setColorFilter(textColor);
         }
         
-        // Set featured badge visibility
+        // Set featured badge visibility and tint
         if (holder.featuredBadge != null) {
-            holder.featuredBadge.setVisibility(category.isFeatured() ? View.VISIBLE : View.GONE);
+            if (category.isFeatured() && !isAllCategory) {
+                holder.featuredBadge.setVisibility(View.VISIBLE);
+                ((ImageView) holder.featuredBadge).setColorFilter(textColor);
+            } else {
+                holder.featuredBadge.setVisibility(View.GONE);
+            }
         }
         
         // Set click listener
         holder.itemView.setOnClickListener(v -> {
             if (listener != null) {
+                setSelectedCategoryId(category.getId());
                 listener.onCategoryClick(category);
             }
         });
