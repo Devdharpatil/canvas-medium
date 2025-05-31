@@ -92,6 +92,19 @@ public class CategoryAdapter extends RecyclerView.Adapter<CategoryAdapter.Catego
         notifyDataSetChanged();
     }
 
+    /**
+     * Gets a category at the specified position.
+     *
+     * @param position The position to get the category from
+     * @return The category at the specified position, or null if the position is invalid
+     */
+    public Category getCategory(int position) {
+        if (position >= 0 && position < categories.size()) {
+            return categories.get(position);
+        }
+        return null;
+    }
+
     @NonNull
     @Override
     public CategoryViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {

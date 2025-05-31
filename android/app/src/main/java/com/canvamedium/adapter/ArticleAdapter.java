@@ -21,6 +21,7 @@ import java.util.List;
 public class ArticleAdapter extends ListAdapter<Article, ArticleAdapter.ArticleViewHolder> {
 
     private final ArticleClickListener articleClickListener;
+    private int lastPosition = -1;
 
     /**
      * Interface for handling article click events.
@@ -72,6 +73,10 @@ public class ArticleAdapter extends ListAdapter<Article, ArticleAdapter.ArticleV
     @Override
     public void onBindViewHolder(@NonNull ArticleViewHolder holder, int position) {
         Article article = getItem(position);
+        
+        // Apply animations
+        setAnimation(holder.itemView, position);
+        
         holder.bind(article);
     }
 
@@ -132,5 +137,32 @@ public class ArticleAdapter extends ListAdapter<Article, ArticleAdapter.ArticleV
             // Ensure the binding is executed immediately
             binding.executePendingBindings();
         }
+    }
+
+    /**
+     * Adds animation to the view
+     */
+    private void setAnimation(View view, int position) {
+        // If the bound view wasn't previously displayed on screen, it's animated
+        if (position > lastPosition) {
+            view.setTranslationY(30f);
+            view.setAlpha(0f);
+            view.animate()
+                .translationY(0f)
+                .alpha(1f)
+                .setInterpolator(new android.view.animation.DecelerateInterpolator())
+                .setDuration(300)
+                .start();
+            lastPosition = position;
+        }
+    }
+    
+    /**
+     * Reset animation tracking when data changes
+     */
+    @Override
+    public void onViewDetachedFromWindow(@NonNull ArticleViewHolder holder) {
+        super.onViewDetachedFromWindow(holder);
+        holder.itemView.clearAnimation();
     }
 } 

@@ -61,7 +61,7 @@
     <string name="search_articles">Search Articles</string>
     <string name="status">Status:</string>
     <string name="template">Template:</string>
-    <string name="featured">Featured:</string>
+    <string name="featured_label">Featured:</string>
     <string name="no_search_results">No results found</string>
     <string name="error_message">Error: %1$s</string>
     
@@ -160,4 +160,10 @@
     <string name="email">Email</string>
     <string name="password">Password</string>
     <string name="new_user_register">New User? Register</string>
+    <string name="featured_article_image">Featured article image</string>
+    <string name="browse_categories">Browse Categories</string>
+    <string name="latest_articles">Latest Articles</string>
+    <string name="featured">Featured</string>
+    <string name="trending_articles_title">Trending Articles</string>
+    <string name="view_all">View all</string>
 </resources> 

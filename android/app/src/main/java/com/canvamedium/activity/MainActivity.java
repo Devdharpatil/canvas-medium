@@ -10,6 +10,8 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -20,35 +22,49 @@ import androidx.appcompat.widget.SearchView;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+import androidx.viewpager2.widget.ViewPager2;
+import androidx.viewpager2.widget.CompositePageTransformer;
+import androidx.viewpager2.widget.MarginPageTransformer;
 
 import com.canvamedium.R;
 import com.canvamedium.adapter.ArticleAdapter;
+import com.canvamedium.adapter.CategoryAdapter;
+import com.canvamedium.adapter.FeaturedArticleAdapter;
 import com.canvamedium.model.Article;
 import com.canvamedium.model.Category;
 import com.canvamedium.repository.ArticleRepository;
 import com.canvamedium.repository.CategoryRepository;
 import com.canvamedium.sync.SyncManager;
 import com.canvamedium.util.AuthManager;
+import com.canvamedium.util.CarouselPageTransformer;
 import com.canvamedium.util.DemoDataGenerator;
 import com.canvamedium.util.NetworkUtils;
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 import com.google.android.material.imageview.ShapeableImageView;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.tabs.TabLayout;
+import com.google.android.material.tabs.TabLayoutMediator;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Main activity that shows the article feed and provides navigation to other features.
  */
-public class MainActivity extends AppCompatActivity implements ArticleAdapter.ArticleClickListener {
+public class MainActivity extends AppCompatActivity implements 
+        ArticleAdapter.ArticleClickListener,
+        CategoryAdapter.OnCategoryClickListener,
+        FeaturedArticleAdapter.OnFeaturedArticleClickListener {
 
     private static final String TAG = "MainActivity";
     
     private RecyclerView recyclerView;
+    private RecyclerView categoryRecyclerView;
     private ArticleAdapter adapter;
+    private CategoryAdapter categoryAdapter;
+    private FeaturedArticleAdapter featuredAdapter;
     private SwipeRefreshLayout swipeRefreshLayout;
     private View emptyView;
     private View offlineIndicator;
@@ -79,6 +95,7 @@ public class MainActivity extends AppCompatActivity implements ArticleAdapter.Ar
 
         // Initialize UI components
         recyclerView = findViewById(R.id.recyclerView);
+        categoryRecyclerView = findViewById(R.id.category_recycler_view);
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
         emptyView = findViewById(R.id.emptyView);
         offlineIndicator = findViewById(R.id.offlineIndicator);
@@ -114,10 +131,18 @@ public class MainActivity extends AppCompatActivity implements ArticleAdapter.Ar
             });
         }
 
-        // Set up RecyclerView
+        // Set up RecyclerView for articles
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         adapter = new ArticleAdapter(this);
         recyclerView.setAdapter(adapter);
+        
+        // Set up category RecyclerView
+        categoryAdapter = new CategoryAdapter(this, this);
+        categoryAdapter.setHorizontalLayout(true);
+        categoryRecyclerView.setAdapter(categoryAdapter);
+
+        // Set up featured carousel
+        setupFeaturedCarousel();
 
         // Initialize repositories and managers
         articleRepository = new ArticleRepository(getApplication());
@@ -145,6 +170,7 @@ public class MainActivity extends AppCompatActivity implements ArticleAdapter.Ar
         setupBottomNavigation();
         
         // Load initial data
+        loadCategories();
         loadArticles();
     }
 
@@ -453,12 +479,13 @@ public class MainActivity extends AppCompatActivity implements ArticleAdapter.Ar
         offlineIndicator.setVisibility(isConnected ? View.GONE : View.VISIBLE);
     }
 
+    /**
+     * Loads articles with the specified filters
+     */
     private void loadArticles() {
-        swipeRefreshLayout.setRefreshing(true);
         showLoading(true);
-        updateConnectivityState();
+        showEmptyState(false);
         
-        // Get articles from repository
         articleRepository.getAllArticles((articles, error) -> {
             runOnUiThread(() -> {
                 swipeRefreshLayout.setRefreshing(false);
@@ -466,49 +493,65 @@ public class MainActivity extends AppCompatActivity implements ArticleAdapter.Ar
                 
                 if (error != null) {
                     Log.e(TAG, "Error loading articles: " + error);
-                    
-                    // Show error view with retry option
-                    showError(error);
-                    
-                    // Try to load from local database as fallback
-                    loadLocalArticles();
+                    showError(getString(R.string.error_loading_articles));
                     return;
                 }
                 
-                if (articles != null && !articles.isEmpty()) {
-                    adapter.setArticles(articles);
-                    showEmptyState(false);
-                } else {
-                    // Show empty state
+                if (articles == null || articles.isEmpty()) {
                     showEmptyState(true);
+                    adapter.setArticles(new ArrayList<>());
+                    featuredAdapter.setFeaturedArticles(new ArrayList<>());
+                } else {
+                    showEmptyState(false);
                     
-                    // Prompt to create demo data
-                    Snackbar.make(
-                            findViewById(android.R.id.content),
-                            "No articles found. Generate demo content?",
-                            Snackbar.LENGTH_LONG)
-                        .setAction("GENERATE", v -> generateDemoData())
-                        .show();
+                    // Filter for featured articles for the carousel
+                    List<Article> featuredArticles = articles.stream()
+                            .filter(Article::isFeatured)
+                            .limit(5)
+                            .collect(Collectors.toList());
+                    
+                    // If there are no featured articles, use the first 5 regular articles
+                    if (featuredArticles.isEmpty() && !articles.isEmpty()) {
+                        featuredArticles = articles.stream()
+                                .limit(5)
+                                .collect(Collectors.toList());
+                    }
+                    
+                    featuredAdapter.setFeaturedArticles(featuredArticles);
+                    
+                    // Filter articles by selected category if needed
+                    if (selectedCategoryId != -1) {
+                        List<Article> filteredArticles = articles.stream()
+                                .filter(article -> article.getCategory() != null 
+                                        && article.getCategory().getId() == selectedCategoryId)
+                                .collect(Collectors.toList());
+                        adapter.setArticles(filteredArticles);
+                    } else {
+                        adapter.setArticles(articles);
+                    }
+                    
+                    // Update category counts
+                    updateCategoryCounts(articles);
                 }
             });
         });
     }
     
+    /**
+     * Loads articles by category
+     */
     private void loadArticlesByCategory(long categoryId) {
         swipeRefreshLayout.setRefreshing(true);
         showLoading(true);
         
-        // Get articles from repository
         articleRepository.getArticlesByCategory(categoryId, (articles, error) -> {
             runOnUiThread(() -> {
                 swipeRefreshLayout.setRefreshing(false);
                 showLoading(false);
                 
                 if (error != null) {
-                    Log.e(TAG, "Error loading articles: " + error);
-                    
-                    // Show error with retry option
-                    showError(error);
+                    Log.e(TAG, "Error loading articles by category: " + error);
+                    showError(getString(R.string.error_loading_articles));
                     return;
                 }
                 
@@ -516,7 +559,7 @@ public class MainActivity extends AppCompatActivity implements ArticleAdapter.Ar
                     adapter.setArticles(articles);
                     showEmptyState(false);
                 } else {
-                    // Show empty state for category
+                    adapter.clearArticles();
                     showEmptyState(true);
                 }
             });
@@ -756,5 +799,213 @@ public class MainActivity extends AppCompatActivity implements ArticleAdapter.Ar
     protected void onResume() {
         super.onResume();
         updateConnectivityState();
+    }
+
+    /**
+     * Loads categories for the horizontal category selector
+     */
+    private void loadCategories() {
+        showLoading(true);
+        
+        categoryRepository.getAllCategories((categories, error) -> {
+            showLoading(false);
+            
+            if (error != null) {
+                Toast.makeText(this, getString(R.string.error_loading_categories), Toast.LENGTH_SHORT).show();
+                Log.e(TAG, "Error loading categories: " + error);
+                
+                // At least show "All" category
+                Category allCategory = new Category("All", "all");
+                allCategory.setId(-1L);
+                categoryAdapter.setCategories(List.of(allCategory));
+                return;
+            }
+            
+            if (categories != null && !categories.isEmpty()) {
+                // Create "All" category at the beginning
+                Category allCategory = new Category("All", "all");
+                allCategory.setId(-1L);
+                allCategory.setDescription("All articles");
+                allCategory.setArticleCount(adapter.getItemCount());
+                
+                List<Category> allCategories = new ArrayList<>();
+                allCategories.add(allCategory);
+                allCategories.addAll(categories);
+                
+                categoryAdapter.setCategories(allCategories);
+            } else {
+                // Handle empty categories
+                Category allCategory = new Category("All", "all");
+                allCategory.setId(-1L);
+                categoryAdapter.setCategories(List.of(allCategory));
+            }
+        });
+    }
+    
+    /**
+     * Updates the article counts for each category
+     */
+    private void updateCategoryCounts(List<Article> articles) {
+        if (categoryAdapter.getItemCount() <= 1) {
+            return;
+        }
+        
+        List<Category> currentCategories = new ArrayList<>();
+        for (int i = 0; i < categoryAdapter.getItemCount(); i++) {
+            Category category = categoryAdapter.getCategory(i);
+            if (category != null) {
+                if (category.getId() == -1) {
+                    // Update "All" category count
+                    category.setArticleCount(articles.size());
+                } else {
+                    // Count articles for this category
+                    long count = articles.stream()
+                            .filter(article -> article.getCategory() != null 
+                                    && article.getCategory().getId() == category.getId())
+                            .count();
+                    category.setArticleCount((int) count);
+                }
+                currentCategories.add(category);
+            }
+        }
+        
+        categoryAdapter.setCategories(currentCategories);
+    }
+
+    /**
+     * Callback when a category is clicked
+     */
+    @Override
+    public void onCategoryClick(Category category) {
+        selectedCategoryId = category.getId();
+        if (selectedCategoryId == -1) {
+            // "All" category selected
+            loadArticles();
+        } else {
+            loadArticlesByCategory(selectedCategoryId);
+        }
+    }
+    
+    /**
+     * Callback when a featured article is clicked
+     */
+    @Override
+    public void onFeaturedArticleClick(Article article) {
+        // Open article detail screen
+        Intent intent = new Intent(this, ArticleDetailActivity.class);
+        intent.putExtra("article_id", article.getId());
+        startActivity(intent);
+    }
+
+    /**
+     * Sets up the trending article carousel with appropriate transformations and animations
+     */
+    private void setupFeaturedCarousel() {
+        featuredAdapter = new FeaturedArticleAdapter(this, this);
+        
+        // Use trending_carousel instead of featuredCarousel
+        ViewPager2 trendingCarousel = findViewById(R.id.trending_carousel);
+        trendingCarousel.setAdapter(featuredAdapter);
+        
+        // Set offscreen page limit to ensure adjacent pages are available
+        trendingCarousel.setOffscreenPageLimit(3);
+        
+        // Apply the new CarouselPageTransformer
+        trendingCarousel.setPageTransformer(new CarouselPageTransformer());
+        
+        // Set up custom indicator
+        LinearLayout indicatorsContainer = findViewById(R.id.custom_page_indicator_container);
+        
+        // Auto-cycle through the carousel
+        Handler sliderHandler = new Handler();
+        Runnable sliderRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (trendingCarousel.getCurrentItem() < featuredAdapter.getItemCount() - 1) {
+                    trendingCarousel.setCurrentItem(trendingCarousel.getCurrentItem() + 1);
+                } else {
+                    trendingCarousel.setCurrentItem(0);
+                }
+                sliderHandler.postDelayed(this, 3000);
+            }
+        };
+
+        trendingCarousel.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
+            @Override
+            public void onPageSelected(int position) {
+                super.onPageSelected(position);
+                updateIndicators(indicatorsContainer, position, featuredAdapter.getItemCount());
+                sliderHandler.removeCallbacks(sliderRunnable);
+                sliderHandler.postDelayed(sliderRunnable, 3000);
+            }
+        });
+        
+        // Set initial position to show peeking on both sides if possible
+        if (featuredAdapter.getItemCount() >= 3) { // Need at least 3 to reliably start at index 1 and show both peeks
+            int initialPosition = 1; // Start at the second item (index 1)
+            trendingCarousel.setCurrentItem(initialPosition, false);
+            // Manually update indicators for this initial, non-scrolled position
+            updateIndicators(indicatorsContainer, initialPosition, featuredAdapter.getItemCount());
+        } else if (featuredAdapter.getItemCount() > 0) { // If less than 3 but more than 0
+            updateIndicators(indicatorsContainer, 0, featuredAdapter.getItemCount());
+        }
+        
+        // View All button click listener
+        TextView viewAllButton = findViewById(R.id.trending_view_all_button);
+        viewAllButton.setOnClickListener(v -> {
+            Toast.makeText(this, "View All Trending Articles", Toast.LENGTH_SHORT).show();
+            // Future implementation to show all trending articles
+        });
+    }
+    
+    /**
+     * Creates and updates custom indicators for ViewPager2
+     */
+    private void updateIndicators(LinearLayout container, int currentPosition, int count) {
+        // If container is empty, create indicators
+        if (container.getChildCount() == 0) {
+            createIndicators(container, count, currentPosition);
+        } else {
+            // Update indicators to reflect current position
+            for (int i = 0; i < container.getChildCount(); i++) {
+                ImageView indicator = (ImageView) container.getChildAt(i);
+                if (i == currentPosition) {
+                    indicator.setImageResource(R.drawable.indicator_dot_active_rect);
+                } else {
+                    indicator.setImageResource(R.drawable.indicator_dot_inactive);
+                }
+            }
+        }
+    }
+    
+    /**
+     * Creates indicators for ViewPager2
+     */
+    private void createIndicators(LinearLayout container, int count, int currentPosition) {
+        container.removeAllViews();
+        
+        if (count <= 0) return;
+        
+        // Create indicator views
+        for (int i = 0; i < count; i++) {
+            ImageView indicator = new ImageView(this);
+            
+            // Set indicator appearance based on position
+            if (i == currentPosition) {
+                indicator.setImageResource(R.drawable.indicator_dot_active_rect);
+            } else {
+                indicator.setImageResource(R.drawable.indicator_dot_inactive);
+            }
+            
+            // Set margins between indicators
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT);
+            params.setMargins(8, 0, 8, 0);
+            indicator.setLayoutParams(params);
+            
+            // Add to container
+            container.addView(indicator);
+        }
     }
 } 
